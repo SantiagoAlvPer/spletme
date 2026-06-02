@@ -16,104 +16,12 @@ import {
 import CollaboratorService from "@/services/collaborator";
 import { splitsService } from "@/services/splits";
 import type { Collaborator } from "@/types";
-
-// ── API types ─────────────────────────────────────────────────────────────────
-
-interface ApiSong {
-  songId: string;
-  trackTitle: string;
-  artistName: string;
-  isrc: string;
-  upc: string;
-  totalStreams: number;
-  totalNetIncome: number;
-  totalGrossIncome: number;
-  split: {
-    splitId: string;
-    percentage: number;
-    totalOwed: number;
-    totalPaid: number;
-    pendingAmount: number;
-  } | null;
-}
-
-interface ApiCollaboratorDetail {
-  userId: string;
-  userExternalId: string;
-  email: string;
-  name: string;
-  role: string;
-  invitedBy: { _id: string; name: string; email: string } | null;
-  createdAt: string;
-  songs: ApiSong[];
-}
-
-interface SplitHistoryEntry {
-  _id: string;
-  action: "create" | "update" | "delete";
-  isDeleted: boolean;
-  collaboratorId: string;
-  conditions: Array<{
-    percentage: number;
-    countriesType: string;
-    selectedCountries: string[];
-    selectedPlatforms: string[];
-  }>;
-  createdAt: string;
-  originalCreatedAt: string;
-  originalUpdatedAt: string;
-  songId: {
-    _id: string;
-    isrc: string;
-    artistName: string;
-    trackTitle: string;
-    upc: string;
-  };
-  splitId: string;
-  updatedAt: string;
-  updatedBy: { _id: string; name: string; email: string };
-}
-
-interface PlatformEntry {
-  platform: string;
-  streams: number;
-  netIncome: number;
-  grossIncome: number;
-}
-
-interface SongMetrics {
-  songId: string;
-  trackTitle: string;
-  artistName: string;
-  isrc: string;
-  upc: string;
-  totalStreams: number;
-  totalNetIncome: number;
-  totalGrossIncome: number;
-  byPlatform: PlatformEntry[];
-  split: {
-    splitId: string;
-    percentage: number;
-    totalOwed: number;
-    totalPaid: number;
-    pendingAmount: number;
-  } | null;
-}
-
-interface CollaboratorTotals {
-  totalStreams: number;
-  totalNetIncome: number;
-  totalGrossIncome: number;
-  totalOwed: number;
-  totalPaid: number;
-  pendingAmount: number;
-  byPlatform: PlatformEntry[];
-}
-
-interface CollaboratorMetrics {
-  songs: SongMetrics[];
-  totals: CollaboratorTotals;
-}
+import type {
+  ApiSong,
+  ApiCollaboratorDetail,
+  SplitHistoryEntry,
+  CollaboratorMetrics,
+} from "@/types/collaborator.types";
 
 interface CollaboratorDetailModalProps {
   collaborator: Collaborator;
@@ -128,7 +36,6 @@ const fmt = (n: number) =>
     currency: "USD",
     maximumFractionDigits: 2,
   });
-
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("es-CO", {
@@ -201,9 +108,6 @@ export function CollaboratorDetailModal({
       .finally(() => setHistoryLoading(false));
   }, [selectedSong]);
 
-  const totalStreams =
-    detail?.songs.reduce((s, x) => s + (x.totalStreams ?? 0), 0) ?? 0;
-    
   // Use metrics.totals when available, fall back to detail.songs
   const collaboratorTotalStreams =
     metrics?.totals.totalStreams ??
@@ -292,80 +196,6 @@ export function CollaboratorDetailModal({
               )}
             </div>
 
-            {/* Stats */}
-            <div className="flex flex-col gap-2.5 px-5 py-5 border-b border-gray-100">
-              <span className="text-xs font-bold text-[#9CA3AF] tracking-wider">
-                RESUMEN
-              </span>
-              <div className="flex flex-col gap-2">
-                {[
-                  {
-                    icon: <Music className="w-4 h-4" />,
-                    label: "Canciones",
-                    value: detail?.songs.length ?? collaborator.songs,
-                    cls: "text-[#111827]",
-                  },
-                  {
-                    icon: <Headphones className="w-4 h-4" />,
-                    label: "Streams",
-                    value: (
-                      metrics?.totals.totalStreams ?? totalStreams
-                    ).toLocaleString("en-US"),
-                    cls: "text-[#F97316]",
-                  },
-                ].map(({ icon, label, value, cls }) => (
-                  <div
-                    key={label}
-                    className="flex items-center justify-between px-3 h-10 bg-white rounded-xl border border-gray-100"
-                  >
-                    <div className="flex items-center gap-2 text-xs text-[#6B7280]">
-                      {icon}
-                      <span>{label}</span>
-                    </div>
-                    <span className={`text-sm font-bold ${cls}`}>{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Split overview from metrics */}
-            {metrics?.totals && (
-              <div className="flex flex-col gap-2.5 px-5 py-5 border-b border-gray-100">
-                <span className="text-xs font-bold text-[#9CA3AF] tracking-wider">
-                  SPLITS — PAGOS
-                </span>
-                <div className="grid grid-cols-1 gap-2">
-                  {[
-                    {
-                      label: "Total adeudado",
-                      value: fmt(metrics.totals.totalOwed),
-                      color: "#F97316",
-                    },
-                    {
-                      label: "Total pagado",
-                      value: fmt(metrics.totals.totalPaid),
-                      color: "#34D399",
-                    },
-                    {
-                      label: "Pendiente",
-                      value: fmt(metrics.totals.pendingAmount),
-                      color: "#F43F5E",
-                    },
-                  ].map(({ label, value, color }) => (
-                    <div
-                      key={label}
-                      className="flex items-center justify-between px-3 h-10 bg-white rounded-xl border border-gray-100"
-                    >
-                      <span className="text-xs text-[#6B7280]">{label}</span>
-                      <span className="text-sm font-bold" style={{ color }}>
-                        {value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Meta info */}
             {detail && (detail.invitedBy || detail.createdAt) && (
               <div className="flex flex-col gap-2.5 px-5 py-5">
@@ -402,6 +232,90 @@ export function CollaboratorDetailModal({
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Participation stats */}
+            {detail?.participation && (
+              <div className="flex flex-col gap-2.5 px-5 py-5 border-b border-gray-100">
+                <span className="text-xs font-bold text-[#9CA3AF] tracking-wider">
+                  PARTICIPACIÓN
+                </span>
+                <div className="flex flex-col gap-2">
+                  {[
+                    {
+                      label: "Canciones",
+                      value: `${detail.participation.songCount} de ${detail.participation.ownerTotalSongs}`,
+                      cls: "text-[#111827]",
+                    },
+                    {
+                      label: "Presencia",
+                      value: `${(detail.participation.presencePercentage * 100).toFixed(2)}%`,
+                      cls: "text-[#06B6D4]",
+                    },
+                    {
+                      label: "Split promedio",
+                      value: `${detail.participation.avgSplitPercentage}%`,
+                      cls: "text-[#F97316]",
+                    },
+                    {
+                      label: "Streams totales",
+                      value:
+                        detail.participation.totalStreams.toLocaleString(
+                          "en-US",
+                        ),
+                      cls: "text-[#8B5CF6]",
+                    },
+                  ].map(({ label, value, cls }) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between px-3 h-10 bg-white rounded-xl border border-gray-100"
+                    >
+                      <span className="text-xs text-[#6B7280]">{label}</span>
+                      <span className={`text-sm font-bold ${cls}`}>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Split overview from metrics */}
+            {metrics?.totals && (
+              <div className="flex flex-col gap-2.5 px-5 py-5 border-b border-gray-100">
+                <span className="text-xs font-bold text-[#9CA3AF] tracking-wider">
+                  SPLITS — PAGOS
+                </span>
+                <div className="flex flex-col gap-2">
+                  {[
+                    {
+                      label: "Total adeudado",
+                      value: fmt(metrics.totals.totalOwed),
+                      color: "#F97316",
+                    },
+                    {
+                      label: "Total pagado",
+                      value: fmt(metrics.totals.totalPaid),
+                      color: "#34D399",
+                    },
+                    {
+                      label: "Pendiente",
+                      value: fmt(metrics.totals.pendingAmount),
+                      color: "#F43F5E",
+                    },
+                  ].map(({ label, value, color }) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between px-3 h-10 bg-white rounded-xl border border-gray-100"
+                    >
+                      <span className="text-xs text-[#6B7280]">{label}</span>
+                      <span className="text-sm font-bold" style={{ color }}>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -472,11 +386,6 @@ export function CollaboratorDetailModal({
                             >
                               {song.split.percentage}%
                             </span>
-                            {song.split.pendingAmount > 0 && (
-                              <span className="text-[10px] font-semibold text-[#F43F5E]">
-                                {fmt(song.split.pendingAmount)} pend.
-                              </span>
-                            )}
                           </>
                         ) : (
                           <span className="text-xs text-gray-300">

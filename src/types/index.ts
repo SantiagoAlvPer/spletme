@@ -51,6 +51,14 @@ export type {
   RecentSong,
   Collaborator,
   CollaboratorPayment,
+  ApiSong,
+  ApiParticipation,
+  ApiCollaboratorDetail,
+  SplitHistoryEntry,
+  PlatformEntry,
+  SongMetrics,
+  CollaboratorTotals,
+  CollaboratorMetrics,
 } from "./collaborator.types";
 
 export type { TopSong } from "./song.types";
