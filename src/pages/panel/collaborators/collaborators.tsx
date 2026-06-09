@@ -3,8 +3,9 @@ import { Plus } from "lucide-react";
 import { CollaboratorsStatsGrid } from "@/components/collaborators/CollaboratorsStatsGrid";
 import { CollaboratorsTable } from "@/components/collaborators/CollaboratorsTable";
 import { FeaturedCollaboratorCard } from "@/components/collaborators/FeaturedCollaboratorCard";
-
 import { CollaboratorDetailModal } from "@/components/collaborators/CollaboratorDetailModal";
+import { AddCollaboratorSidebar } from "@/components/collaborators/AddCollaboratorSidebar";
+import { InviteCollaboratorModal } from "@/components/collaborators/InviteCollaboratorModal";
 import { RecentPaymentsSection } from "@/components/collaborators/RecentPaymentsSection";
 import type { Collaborator, CollaboratorPayment } from "@/types";
 import CollaboratorService from "@/services/collaborator";
@@ -106,12 +107,23 @@ const MOCK_PAYMENTS: CollaboratorPayment[] = [
   },
 ];
 
+interface SongForInvite {
+  _id: string;
+  isrc: string;
+  trackTitle: string;
+  artistName: string;
+  spotifyData?: { album?: { images?: { url: string }[] } };
+}
+
 export default function Collaborators() {
+
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [metrics, setMetrics] = useState<ApiSummary | null>(null);
   const [featuredId, setFeaturedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedSong, setSelectedSong] = useState<SongForInvite | null>(null);
 
   useEffect(() => {
     CollaboratorService.getMetrics().then((response) => {
@@ -142,7 +154,10 @@ export default function Collaborators() {
             <p className="text-sm text-[#6B7280]">Organiza y gestiona a las personas que comparten tus regalías</p>
             <div className="w-10 h-0.5 rounded-full bg-[#F97316] mt-1" />
           </div>
-          <button className="flex items-center gap-2 px-4 h-10 bg-[#F97316] hover:bg-orange-600 text-white text-[13px] font-semibold rounded-lg transition-colors">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="flex items-center gap-2 px-4 h-10 bg-[#F97316] hover:bg-orange-600 text-white text-[13px] font-semibold rounded-lg transition-colors"
+          >
             <Plus className="w-4 h-4" />
             Agregar Colaborador
           </button>
@@ -174,6 +189,27 @@ export default function Collaborators() {
         <CollaboratorDetailModal
           collaborator={featured}
           onClose={() => setProfileOpen(false)}
+        />
+      )}
+
+      {sidebarOpen && (
+        <AddCollaboratorSidebar
+          onClose={() => setSidebarOpen(false)}
+          onSelectSong={(song) => {
+            setSelectedSong(song);
+            setSidebarOpen(false);
+          }}
+        />
+      )}
+
+      {selectedSong && (
+        <InviteCollaboratorModal
+          song={selectedSong}
+          onClose={() => setSelectedSong(null)}
+          onBack={() => {
+            setSelectedSong(null);
+            setSidebarOpen(true);
+          }}
         />
       )}
     </div>

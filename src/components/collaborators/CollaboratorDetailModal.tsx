@@ -50,6 +50,56 @@ const ACTION_STYLES: Record<string, { label: string; cls: string }> = {
   delete: { label: "Eliminado", cls: "bg-red-50 text-red-500" },
 };
 
+const PLATFORM_META: Record<
+  string,
+  { name: string; color: string; bg: string }
+> = {
+  spotify: { name: "Spotify", color: "#1DB954", bg: "#F0FDF4" },
+  apple_music: { name: "Apple Music", color: "#FC3C44", bg: "#FFF1F2" },
+  applemusic: { name: "Apple Music", color: "#FC3C44", bg: "#FFF1F2" },
+  apple: { name: "Apple Music", color: "#FC3C44", bg: "#FFF1F2" },
+  youtube_music: { name: "YouTube Music", color: "#FF0000", bg: "#FFF1F2" },
+  youtubemusic: { name: "YouTube Music", color: "#FF0000", bg: "#FFF1F2" },
+  youtube: { name: "YouTube Music", color: "#FF0000", bg: "#FFF1F2" },
+  amazon_music: { name: "Amazon Music", color: "#00A8E1", bg: "#F0F9FF" },
+  amazonmusic: { name: "Amazon Music", color: "#00A8E1", bg: "#F0F9FF" },
+  amazon: { name: "Amazon Music", color: "#00A8E1", bg: "#F0F9FF" },
+  tidal: { name: "Tidal", color: "#000000", bg: "#F3F4F6" },
+  deezer: { name: "Deezer", color: "#A238FF", bg: "#F5F3FF" },
+  pandora: { name: "Pandora", color: "#3668FF", bg: "#EFF6FF" },
+  soundcloud: { name: "SoundCloud", color: "#FF5500", bg: "#FFF7ED" },
+  napster: { name: "Napster", color: "#009BDE", bg: "#F0F9FF" },
+  iheartradio: { name: "iHeartRadio", color: "#C6002B", bg: "#FFF1F2" },
+  vevo: { name: "Vevo", color: "#E31837", bg: "#FFF1F2" },
+  audiomack: { name: "Audiomack", color: "#FFA500", bg: "#FFFBEB" },
+  anghami: { name: "Anghami", color: "#5C2D91", bg: "#FAF5FF" },
+  boomplay: { name: "Boomplay", color: "#FF6B35", bg: "#FFF7ED" },
+  tiktok: { name: "TikTok", color: "#010101", bg: "#F3F4F6" },
+  facebook: { name: "Facebook", color: "#1877F2", bg: "#EFF6FF" },
+  instagram: { name: "Instagram", color: "#E1306C", bg: "#FFF1F2" },
+  shazam: { name: "Shazam", color: "#0088FF", bg: "#EFF6FF" },
+  kkbox: { name: "KKBOX", color: "#00B060", bg: "#F0FDF4" },
+  joox: { name: "JOOX", color: "#00CC00", bg: "#F0FDF4" },
+  gaana: { name: "Gaana", color: "#E72C30", bg: "#FFF1F2" },
+  jiosaavn: { name: "JioSaavn", color: "#2BC5B4", bg: "#F0FDFA" },
+  wynk: { name: "Wynk Music", color: "#1B2D7F", bg: "#EFF6FF" },
+  hungama: { name: "Hungama", color: "#E4002B", bg: "#FFF1F2" },
+  melon: { name: "Melon", color: "#00CD3C", bg: "#F0FDF4" },
+  bugs: { name: "Bugs!", color: "#FF6600", bg: "#FFF7ED" },
+  genie: { name: "Genie Music", color: "#00ADEF", bg: "#F0F9FF" },
+  flo: { name: "FLO", color: "#FF4867", bg: "#FFF1F2" },
+  vibe: { name: "Naver Vibe", color: "#03C75A", bg: "#F0FDF4" },
+};
+
+const getPlatformMeta = (raw: string) => {
+  const key = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return (
+    PLATFORM_META[raw.toLowerCase()] ??
+    PLATFORM_META[key] ??
+    { name: raw.charAt(0).toUpperCase() + raw.slice(1), color: "#6B7280", bg: "#F9FAFB" }
+  );
+};
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function CollaboratorDetailModal({
@@ -692,36 +742,53 @@ export function CollaboratorDetailModal({
                           .slice()
                           .sort((a, b) => b.streams - a.streams)
                           .map((p) => {
+                            const meta = getPlatformMeta(p.platform);
                             const globalEntry = globalPlatforms.find(
                               (g) => g.platform === p.platform,
                             );
-                            const globalPct =
-                              ((globalEntry?.streams ?? 0) /
-                                Math.max(
-                                  ...globalPlatforms.map((g) => g.streams),
-                                  1,
-                                )) *
-                              100;
+                            const totalStreams = globalEntry?.streams ?? 0;
+                            // Total is always the max, so total bar = 100% and song bar is relative to it
                             const songPct =
-                              (p.streams / maxPlatformStreams) * 100;
+                              totalStreams > 0
+                                ? (p.streams / totalStreams) * 100
+                                : 0;
                             return (
                               <div
                                 key={p.platform}
-                                className="flex flex-col gap-1.5 px-3 py-2.5 bg-[#F9FAFB] rounded-xl border border-gray-100"
+                                className="flex flex-col gap-1.5 px-3 py-2.5 rounded-xl border border-gray-100"
+                                style={{ backgroundColor: meta.bg }}
                               >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[11px] font-semibold text-[#111827] capitalize">
-                                    {p.platform}
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: meta.color }}
+                                  />
+                                  <span
+                                    className="text-[11px] font-bold"
+                                    style={{ color: meta.color }}
+                                  >
+                                    {meta.name}
                                   </span>
                                 </div>
                                 <div className="grid grid-cols-3 gap-1.5">
                                   <div className="flex flex-col gap-0.5 px-2 py-1.5 bg-white rounded-lg border border-gray-100">
                                     <span className="text-[9px] text-[#9CA3AF] uppercase tracking-wide">
-                                      Streams
+                                      Str. total
                                     </span>
-                                    <div className="flex items-center gap-1 text-[#06B6D4]">
+                                    <div className="flex items-center gap-1" style={{ color: meta.color }}>
                                       <Headphones className="w-2.5 h-2.5" />
                                       <span className="text-[10px] font-bold">
+                                        {totalStreams.toLocaleString("en-US")}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col gap-0.5 px-2 py-1.5 bg-white rounded-lg border border-gray-100">
+                                    <span className="text-[9px] text-[#9CA3AF] uppercase tracking-wide">
+                                      Str. canción
+                                    </span>
+                                    <div className="flex items-center gap-1" style={{ color: meta.color }}>
+                                      <Headphones className="w-2.5 h-2.5 opacity-60" />
+                                      <span className="text-[10px] font-bold opacity-80">
                                         {p.streams.toLocaleString("en-US")}
                                       </span>
                                     </div>
@@ -737,27 +804,19 @@ export function CollaboratorDetailModal({
                                       </span>
                                     </div>
                                   </div>
-                                  <div className="flex flex-col gap-0.5 px-2 py-1.5 bg-white rounded-lg border border-gray-100">
-                                    <span className="text-[9px] text-[#9CA3AF] uppercase tracking-wide">
-                                      Bruto
-                                    </span>
-                                    <div className="flex items-center gap-1 text-[#C084FC]">
-                                      <DollarSign className="w-2.5 h-2.5" />
-                                      <span className="text-[10px] font-bold">
-                                        {fmt(p.grossIncome)}
-                                      </span>
-                                    </div>
-                                  </div>
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <div className="flex items-center gap-2">
                                     <span className="text-[9px] text-[#9CA3AF] w-12 flex-shrink-0">
                                       Total
                                     </span>
-                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="flex-1 h-1.5 bg-white rounded-full overflow-hidden">
                                       <div
-                                        className="h-full rounded-full bg-[#06B6D4]"
-                                        style={{ width: `${globalPct}%` }}
+                                        className="h-full rounded-full opacity-40"
+                                        style={{
+                                          width: "100%",
+                                          backgroundColor: meta.color,
+                                        }}
                                       />
                                     </div>
                                   </div>
@@ -765,10 +824,13 @@ export function CollaboratorDetailModal({
                                     <span className="text-[9px] text-[#9CA3AF] w-12 flex-shrink-0">
                                       Canción
                                     </span>
-                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="flex-1 h-1.5 bg-white rounded-full overflow-hidden">
                                       <div
-                                        className="h-full rounded-full bg-[#F97316]"
-                                        style={{ width: `${songPct}%` }}
+                                        className="h-full rounded-full"
+                                        style={{
+                                          width: `${songPct}%`,
+                                          backgroundColor: meta.color,
+                                        }}
                                       />
                                     </div>
                                   </div>
