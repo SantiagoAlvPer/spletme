@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
-import {
-  CreateSplitOwnerRequest,
-  splitsService,
-  type SplitCondition,
-} from "@/services/splits";
+import { songSplitsService } from "@/services/songSplits";
+import { useReleaseFiltersForSongs } from "@/hooks/useReleaseFiltersForSongs";
 import LocalStorageService from "@/services/localstorage";
 import type { Album } from "@/types";
 import type { OwnerFormData, CreationProgress } from "@/types/album-owner-split.types";
@@ -14,13 +11,12 @@ const DEFAULT_FORM: OwnerFormData = {
   selectedCountries: [],
   platformsType: "all",
   selectedPlatforms: [],
-  splitConditions: [],
-  type: "general",
 };
 
 /**
- * Gestiona el estado y la lógica del modal de owner splits por álbum completo.
- * Incluye creación masiva por canción, tracking de progreso y auto-cierre.
+ * Gestiona el estado y la lógica del modal de owner split por álbum completo.
+ * Aplica una única regla (porcentaje + filtros opcionales país/plataforma) a
+ * cada canción del álbum mediante el modelo SongSplit.
  */
 export function useAlbumOwnerSplit(
   isOpen: boolean,
@@ -38,6 +34,10 @@ export function useAlbumOwnerSplit(
 
   const currentUser = LocalStorageService.getItem("user");
 
+  const songIds = (album?.tracks ?? []).map((t) => t._id);
+  const { countryOptions, platformOptions, isLoadingFilters } =
+    useReleaseFiltersForSongs(songIds, isOpen);
+
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
@@ -48,6 +48,7 @@ export function useAlbumOwnerSplit(
       setProgress(null);
       setShowResults(false);
       setAutoCloseCountdown(null);
+      setOwnerForm(DEFAULT_FORM);
     }
   }, [isOpen]);
 
@@ -70,41 +71,6 @@ export function useAlbumOwnerSplit(
     setOwnerForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updateSplitCondition = (
-    index: number,
-    field: string,
-    value: string | readonly { value: string; label: string }[] | readonly string[]
-  ) => {
-    setOwnerForm((prev) => ({
-      ...prev,
-      splitConditions: prev.splitConditions.map((c, i) =>
-        i === index ? { ...c, [field]: value } : c
-      ),
-    }));
-  };
-
-  const addSplitCondition = () => {
-    const newCondition: SplitCondition = {
-      percentage: 0,
-      selectedCountries: [],
-      countriesType: "all",
-      selectedPlatforms: [],
-      platformsType: "all",
-      type: "specific",
-    };
-    setOwnerForm((prev) => ({
-      ...prev,
-      splitConditions: [...prev.splitConditions, newCondition],
-    }));
-  };
-
-  const removeSplitCondition = (index: number) => {
-    setOwnerForm((prev) => ({
-      ...prev,
-      splitConditions: prev.splitConditions.filter((_, i) => i !== index),
-    }));
-  };
-
   const closeWithReset = () => {
     const hadProgress = progress !== null;
     setProgress(null);
@@ -112,64 +78,6 @@ export function useAlbumOwnerSplit(
     setAutoCloseCountdown(null);
     onClose();
     if (hadProgress && onSplitsCreated) onSplitsCreated();
-  };
-
-  const buildConditions = (): SplitCondition[] | null => {
-    const conditions: SplitCondition[] = [];
-
-    if (ownerForm.percentage && parseFloat(ownerForm.percentage) > 0) {
-      const pct = parseFloat(ownerForm.percentage);
-      if (pct <= 0 || pct > 100) {
-        alert("El porcentaje debe estar entre 0 y 100");
-        return null;
-      }
-      conditions.push({
-        percentage: pct,
-        selectedCountries: ownerForm.selectedCountries.map((c) => c.value),
-        countriesType: ownerForm.countriesType,
-        selectedPlatforms: ownerForm.selectedPlatforms.map((p) => p.value),
-        platformsType: ownerForm.platformsType,
-        type: "general",
-      });
-    }
-
-    for (let i = 0; i < ownerForm.splitConditions.length; i++) {
-      const condition = ownerForm.splitConditions[i];
-      const pct = typeof condition.percentage === "string"
-        ? parseFloat(condition.percentage)
-        : condition.percentage;
-
-      if (pct <= 0 || pct > 100) {
-        alert(`El porcentaje de la condición #${i + 1} debe estar entre 0 y 100`);
-        return null;
-      }
-
-      conditions.push({
-        fromDate: condition.fromDate,
-        toDate: condition.toDate,
-        percentage: pct,
-        selectedCountries: Array.isArray(condition.selectedCountries)
-          ? condition.selectedCountries.map((c) =>
-              typeof c === "string" ? c : (c as { value: string }).value
-            )
-          : [],
-        countriesType: condition.countriesType ?? "all",
-        selectedPlatforms: Array.isArray(condition.selectedPlatforms)
-          ? condition.selectedPlatforms.map((p) =>
-              typeof p === "string" ? p : (p as { value: string }).value
-            )
-          : [],
-        platformsType: condition.platformsType ?? "all",
-        type: "specific",
-      });
-    }
-
-    if (conditions.length === 0) {
-      alert("Configura al menos una condición (porcentaje general o condición específica)");
-      return null;
-    }
-
-    return conditions;
   };
 
   const createBulkOwnerSplits = async () => {
@@ -182,8 +90,19 @@ export function useAlbumOwnerSplit(
       return;
     }
 
-    const conditions = buildConditions();
-    if (!conditions) return;
+    const pct = parseFloat(ownerForm.percentage);
+    if (!pct || pct < 1 || pct > 100) {
+      alert("El porcentaje debe estar entre 1 y 100");
+      return;
+    }
+
+    const payloadBase = {
+      percentage: pct,
+      countriesType: ownerForm.countriesType,
+      selectedCountries: ownerForm.selectedCountries.map((c) => c.value),
+      platformsType: ownerForm.platformsType,
+      selectedPlatforms: ownerForm.selectedPlatforms.map((p) => p.value),
+    };
 
     setIsLoading(true);
     setShowResults(false);
@@ -193,12 +112,11 @@ export function useAlbumOwnerSplit(
 
     try {
       for (const track of album.tracks) {
-        setProgress((prev) => prev ? { ...prev, current: track.trackTitle } : null);
+        setProgress((prev) => (prev ? { ...prev, current: track.trackTitle } : null));
 
         try {
-          const payload: CreateSplitOwnerRequest = { songId: track._id, conditions };
-          await splitsService.createOwnerSplit(payload);
-          setProgress((prev) => prev ? { ...prev, completed: prev.completed + 1 } : null);
+          await songSplitsService.createOwnerSplit({ songId: track._id, ...payloadBase });
+          setProgress((prev) => (prev ? { ...prev, completed: prev.completed + 1 } : null));
         } catch (err: unknown) {
           const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
           const msg = axiosErr.response?.data?.message ?? axiosErr.message ?? "Error desconocido";
@@ -226,15 +144,15 @@ export function useAlbumOwnerSplit(
     ownerForm,
     isExpanded,
     isLoading,
+    isLoadingFilters,
+    countryOptions,
+    platformOptions,
     progress,
     showResults,
     autoCloseCountdown,
     currentUser,
     toggleExpanded,
     updateOwnerForm,
-    updateSplitCondition,
-    addSplitCondition,
-    removeSplitCondition,
     createBulkOwnerSplits,
     closeWithReset,
   };

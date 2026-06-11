@@ -1,16 +1,16 @@
-import type { SplitConditionFormData } from "./split.types";
 import type { User } from "./user.types";
+import type { SelectOption } from "./select.types";
+import type { SongSplit } from "./song-split.types";
 
 export type FilterType = "all" | "except" | "only";
 
+/** Estado del formulario de split de un colaborador (una sola regla: % + filtros). */
 export interface CollaboratorFormData {
   percentage: string;
   countriesType: FilterType;
-  selectedCountries: { value: string; label: string }[];
+  selectedCountries: SelectOption[];
   platformsType: FilterType;
-  selectedPlatforms: { value: string; label: string }[];
-  splitConditions: SplitConditionFormData[];
-  type: "general" | "specific";
+  selectedPlatforms: SelectOption[];
 }
 
 export interface SplitsModalProps {
@@ -18,10 +18,12 @@ export interface SplitsModalProps {
   isOpen: boolean;
   onClose: () => void;
   songId: string;
-  onSplitSaved: (splitId: string) => void;
+  onSplitSaved?: (splitId: string) => void;
 }
 
-/** Usuario extendido con el campo split que devuelve el backend por canción */
+/** Colaborador con el split activo que devuelve el backend por canción. */
 export interface CollaboratorWithSplit extends User {
-  split?: { conditions?: import("./split.types").SplitCondition[] } | null;
+  split?: SongSplit | null;
+  amountOwed?: number;
+  hasActiveSplit?: boolean;
 }

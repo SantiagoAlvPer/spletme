@@ -33,7 +33,15 @@ export interface LabelSong {
   totalStreams: number;
   totalGrossIncome: number;
   totalNetIncome: number;
-  ownerSplit: { _id: string; conditions: Array<{ type: string; percentage: number }> };
+  ownerSplit: {
+    _id: string;
+    percentage: number;
+    averagePercentage: number;
+    countriesType?: "all" | "except" | "only";
+    selectedCountries?: string[];
+    platformsType?: "all" | "except" | "only";
+    selectedPlatforms?: string[];
+  } | null;
   ownerEarnings: number;
   ownerId: { _id: string; name: string; email: string };
   collaborators: unknown[];
@@ -51,6 +59,14 @@ export interface LabelSong {
     lastPaymentDate?: string;
     lastPaymentAmount?: number;
   };
+}
+
+export interface LabelSplitPayload {
+  percentage: number;
+  countriesType: "all" | "except" | "only";
+  selectedCountries: string[];
+  platformsType: "all" | "except" | "only";
+  selectedPlatforms: string[];
 }
 
 const errMsg = (error: unknown, fallback: string): string => {
@@ -125,21 +141,22 @@ class LabelsService {
     }
   }
 
-  /** Crea splits para todas las canciones de un label personalizado */
-  async createSplitByCustomLabel(data: {
-    labelName: string;
-    conditions: Array<{
-      type: "specific" | "general";
-      percentage: number;
-      description?: string;
-      parameters?: {
-        countries?: string[];
-        platforms?: string[];
-        platformsType?: "streaming" | "download" | "all";
-        dateRange?: { start?: string; end?: string };
-      };
-    }>;
-  }): Promise<{ error: boolean; data?: unknown; message?: string }> {
+  /** Crea/actualiza el owner split de todas las canciones de un label (artisticLabel) */
+  async createSplitByLabel(
+    data: LabelSplitPayload & { label: string }
+  ): Promise<{ error: boolean; data?: unknown; message?: string }> {
+    try {
+      const response = await apiClient.post(`${this.BASE}/create-split-by-label`, data);
+      return response.data;
+    } catch (error) {
+      return { error: true, message: errMsg(error, "Error creating split by label") };
+    }
+  }
+
+  /** Crea/actualiza el owner split de todas las canciones de un label personalizado */
+  async createSplitByCustomLabel(
+    data: LabelSplitPayload & { labelName: string }
+  ): Promise<{ error: boolean; data?: unknown; message?: string }> {
     try {
       const response = await apiClient.post(`${this.BASE}/create-split-by-custom-label`, data);
       return response.data;

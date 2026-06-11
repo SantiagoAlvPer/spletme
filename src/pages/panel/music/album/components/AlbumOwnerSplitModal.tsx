@@ -18,15 +18,15 @@ export default function AlbumOwnerSplitModal({
     ownerForm,
     isExpanded,
     isLoading,
+    isLoadingFilters,
+    countryOptions,
+    platformOptions,
     progress,
     showResults,
     autoCloseCountdown,
     currentUser,
     toggleExpanded,
     updateOwnerForm,
-    updateSplitCondition,
-    addSplitCondition,
-    removeSplitCondition,
     createBulkOwnerSplits,
     closeWithReset,
   } = useAlbumOwnerSplit(isOpen, album, onClose, onSplitsCreated);
@@ -115,11 +115,11 @@ export default function AlbumOwnerSplitModal({
                   isExpanded={isExpanded}
                   tracksCount={album.tracks?.length ?? 0}
                   currentUser={currentUser}
+                  isLoadingFilters={isLoadingFilters}
+                  countryOptions={countryOptions}
+                  platformOptions={platformOptions}
                   onToggleExpanded={toggleExpanded}
                   onUpdateForm={updateOwnerForm}
-                  onUpdateCondition={updateSplitCondition}
-                  onAddCondition={addSplitCondition}
-                  onRemoveCondition={removeSplitCondition}
                 />
               )}
             </div>

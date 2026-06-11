@@ -32,33 +32,16 @@ const useCurrentCollaborator = ({ collaborators }: UseCurrentCollaboratorProps) 
       return null;
     }
 
-    // Calcular porcentaje y monto a pagar
-    let percentage = 0;
-    let amountToPay = 0;
-
-    // Verificar si tiene splitPayment y obtener el cálculo
-    if (collaborator.splitPayment && collaborator.splitPayment.length > 0) {
-      const latestPayment = collaborator.splitPayment[0];
-      amountToPay = latestPayment.calculation?.amountToPay || 0;
-    }
-
-    // Obtener porcentaje desde las condiciones del split
-    if (collaborator.split?.conditions && collaborator.split.conditions.length > 0) {
-      const percentageCondition = collaborator.split.conditions.find(
-        (condition: any) => condition.type === 'percentage' || condition.percentage !== undefined
-      );
-      
-      if (percentageCondition) {
-        percentage = percentageCondition.percentage || percentageCondition.value || 0;
-      }
-    }
+    // Porcentaje del split (modelo SongSplit) y monto adeudado en vivo.
+    const percentage = collaborator.split?.percentage || 0;
+    const amountToPay = collaborator.amountOwed || 0;
 
     return {
       ...collaborator,
       percentage: percentage.toFixed(2),
       amountToPay: amountToPay.toFixed(2),
       calculatedAmount: amountToPay,
-      status: collaborator.splitPayment?.[0]?.status || 'unknown'
+      status: collaborator.hasActiveSplit ? 'active' : 'unknown'
     };
   }, [collaborators]);
 

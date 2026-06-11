@@ -1,5 +1,10 @@
 import { apiClient } from "@/infrastructure/http/axiosClient";
 import type { SongBalance } from "./accounting";
+import type { ReleaseFiltersOptions, SelectOption } from "@/types";
+
+/** Convierte una lista de strings crudos de la BD en opciones para react-select */
+const toSelectOptions = (values: string[]): SelectOption[] =>
+  (values ?? []).map((value) => ({ value, label: value }));
 
 export type PaymentValidationSeverity = "success" | "info" | "warning" | "error";
 
@@ -312,6 +317,28 @@ class SongService {
       return response.data?.data ?? response.data;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Obtiene los países y plataformas presentes en los releases de una canción.
+   * Devuelve cada valor como opción `{ value, label }` lista para react-select,
+   * usando el string real de la BD como value para que el filtrado de splits
+   * por país/plataforma coincida exactamente.
+   */
+  async getReleaseFilters(songId: string): Promise<ReleaseFiltersOptions> {
+    try {
+      const response = await apiClient.get(`${this.BASE}/${songId}/release-filters`);
+      const data = (response.data?.data ?? { countries: [], platforms: [] }) as {
+        countries: string[];
+        platforms: string[];
+      };
+      return {
+        countries: toSelectOptions(data.countries),
+        platforms: toSelectOptions(data.platforms),
+      };
+    } catch {
+      return { countries: [], platforms: [] };
     }
   }
 }

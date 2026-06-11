@@ -1,14 +1,12 @@
-import type { SplitCondition } from "./split.types";
 import type { Album } from "./album.types";
+import type { SelectOption } from "./select.types";
 
 export interface OwnerFormData {
   percentage: string;
   countriesType: "all" | "except" | "only";
-  selectedCountries: { value: string; label: string }[];
+  selectedCountries: SelectOption[];
   platformsType: "all" | "except" | "only";
-  selectedPlatforms: { value: string; label: string }[];
-  splitConditions: SplitCondition[];
-  type: "general" | "specific";
+  selectedPlatforms: SelectOption[];
 }
 
 export interface CreationProgress {

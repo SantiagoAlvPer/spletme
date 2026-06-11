@@ -1,31 +1,20 @@
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Music,
-  Crown,
-  Plus,
-  Globe,
-  Percent,
-  Settings,
-  ChevronDown,
-  Sparkles,
-  AlertCircle,
-} from "lucide-react";
+import { Music, Crown, Globe, Percent, Settings, ChevronDown } from "lucide-react";
 import Select from "react-select";
-import { countries, platforms } from "@/const";
 import { amberSelectStyles } from "@/components/ui/selectStyles";
-import { OwnerSplitConditionItem } from "./OwnerSplitConditionItem";
 import type { OwnerFormData } from "@/types/album-owner-split.types";
+import type { SelectOption } from "@/types";
 
 interface OwnerSplitConfigFormProps {
   ownerForm: OwnerFormData;
   isExpanded: boolean;
   tracksCount: number;
   currentUser: { name?: string; email?: string } | null;
+  isLoadingFilters: boolean;
+  countryOptions: SelectOption[];
+  platformOptions: SelectOption[];
   onToggleExpanded: () => void;
-  onUpdateForm: (field: keyof OwnerFormData, value: string | readonly { value: string; label: string }[]) => void;
-  onUpdateCondition: (index: number, field: string, value: string | readonly { value: string; label: string }[]) => void;
-  onAddCondition: () => void;
-  onRemoveCondition: (index: number) => void;
+  onUpdateForm: (field: keyof OwnerFormData, value: string | readonly SelectOption[]) => void;
 }
 
 const COUNTRY_TYPE_OPTIONS = [
@@ -41,12 +30,19 @@ const PLATFORM_TYPE_OPTIONS = [
 ] as const;
 
 /**
- * Formulario de configuración de condición general y condiciones específicas
- * para el owner split masivo por álbum.
+ * Formulario de configuración del owner split masivo por álbum: un porcentaje
+ * y filtros opcionales de país y plataforma que se aplican a todas las canciones.
  */
 export function OwnerSplitConfigForm({
-  ownerForm, isExpanded, tracksCount, currentUser,
-  onToggleExpanded, onUpdateForm, onUpdateCondition, onAddCondition, onRemoveCondition,
+  ownerForm,
+  isExpanded,
+  tracksCount,
+  currentUser,
+  isLoadingFilters,
+  countryOptions,
+  platformOptions,
+  onToggleExpanded,
+  onUpdateForm,
 }: OwnerSplitConfigFormProps) {
   return (
     <motion.div
@@ -57,7 +53,7 @@ export function OwnerSplitConfigForm({
     >
       {/* Info Banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <Settings className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
         <div className="text-sm text-blue-900">
           <p className="font-medium mb-1">Creación masiva de splits</p>
           <p>La configuración que definas se aplicará a todas las {tracksCount} canciones de este álbum.</p>
@@ -115,14 +111,13 @@ export function OwnerSplitConfigForm({
               transition={{ duration: 0.3 }}
               className="overflow-hidden"
             >
-              <div className="p-6 space-y-6">
-                {/* Condición General */}
+              <div className="p-6">
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <Settings className="w-6 h-6 text-amber-600" />
                     <div>
-                      <h4 className="text-lg font-semibold text-gray-900">Condición General</h4>
-                      <p className="text-sm text-gray-600">Configuración base que se aplica cuando no hay condiciones específicas activas</p>
+                      <h4 className="text-lg font-semibold text-gray-900">Configuración del Split</h4>
+                      <p className="text-sm text-gray-600">Porcentaje del owner y filtros opcionales de país y plataforma</p>
                     </div>
                   </div>
 
@@ -135,7 +130,7 @@ export function OwnerSplitConfigForm({
                       <div className="relative">
                         <input
                           type="number"
-                          min="0"
+                          min="1"
                           max="100"
                           step="0.01"
                           placeholder="0.00"
@@ -175,7 +170,8 @@ export function OwnerSplitConfigForm({
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
                           <Select
                             isMulti
-                            options={countries}
+                            isLoading={isLoadingFilters}
+                            options={countryOptions}
                             value={ownerForm.selectedCountries}
                             onChange={(selected) => onUpdateForm("selectedCountries", selected ?? [])}
                             styles={amberSelectStyles}
@@ -214,7 +210,8 @@ export function OwnerSplitConfigForm({
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
                           <Select
                             isMulti
-                            options={platforms}
+                            isLoading={isLoadingFilters}
+                            options={platformOptions}
                             value={ownerForm.selectedPlatforms}
                             onChange={(selected) => onUpdateForm("selectedPlatforms", selected ?? [])}
                             styles={amberSelectStyles}
@@ -224,40 +221,6 @@ export function OwnerSplitConfigForm({
                         </motion.div>
                       )}
                     </div>
-                  </div>
-                </div>
-
-                {/* Condiciones Específicas */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Sparkles className="w-6 h-6 text-orange-500" />
-                      <div>
-                        <h4 className="text-lg font-semibold text-gray-900">Condiciones Específicas</h4>
-                        <p className="text-sm text-gray-600">Configuraciones que se aplican en períodos específicos</p>
-                      </div>
-                    </div>
-                    <motion.button
-                      onClick={onAddCondition}
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:shadow-lg transition-all"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <Plus className="w-4 h-4" />
-                      Añadir Condición
-                    </motion.button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {ownerForm.splitConditions.map((condition, idx) => (
-                      <OwnerSplitConditionItem
-                        key={idx}
-                        condition={condition}
-                        index={idx}
-                        onUpdate={onUpdateCondition}
-                        onRemove={onRemoveCondition}
-                      />
-                    ))}
                   </div>
                 </div>
               </div>

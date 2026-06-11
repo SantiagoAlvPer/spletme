@@ -10,17 +10,21 @@ export type SortBy =
   | "split_asc" | "split_desc";
 export type SplitFilter = "all" | "with_split" | "without_split";
 
+export interface SplitData {
+  _id?: string;
+  percentage?: number;
+  countriesType?: "all" | "except" | "only";
+  selectedCountries?: string[];
+  platformsType?: "all" | "except" | "only";
+  selectedPlatforms?: string[];
+}
+
 export interface SongCollaborator {
   _id?: string;
   name?: string;
   image?: string;
-  split?: {
-    conditions?: Array<{ percentage?: number; value?: number }>;
-  };
-}
-
-export interface SplitData {
-  conditions?: Array<{ percentage?: number; value?: number }>;
+  split?: SplitData | null;
+  amountOwed?: number;
 }
 
 export interface SongItem {

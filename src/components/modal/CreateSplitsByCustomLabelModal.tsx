@@ -1,14 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
-  Crown, X, Plus, Trash2, AlertCircle, CheckCircle, Save,
-  Settings, Sparkles, ChevronDown, Percent, Globe, Music,
-  Calendar, Layers,
-} from 'lucide-react';
-import Select from 'react-select';
-import { countries, platforms } from '@/const';
-import { createPortal } from 'react-dom';
-import LabelsService from '../../services/labels';
+  Crown, X, AlertCircle, CheckCircle, Save,
+  Settings, Percent, Globe, Music, Tag,
+} from "lucide-react";
+import Select from "react-select";
+import { createPortal } from "react-dom";
+import { FilterSegment } from "@/components/ui/FilterSegment";
+import { selectStyles } from "@/components/ui/selectStyles";
+import { useReleaseFiltersForSongs } from "@/hooks/useReleaseFiltersForSongs";
+import labelsService from "@/services/labels";
+import type { FilterType, SelectOption } from "@/types";
 
 interface CreateSplitsByCustomLabelModalProps {
   isOpen: boolean;
@@ -18,98 +20,21 @@ interface CreateSplitsByCustomLabelModalProps {
   songCount: number;
 }
 
-type FilterType = 'all' | 'except' | 'only';
-
-interface ConditionForm {
+interface CustomLabelSplitForm {
   percentage: string;
-  fromDate?: string;
-  toDate?: string;
   countriesType: FilterType;
-  selectedCountries: { value: string; label: string }[];
+  selectedCountries: SelectOption[];
   platformsType: FilterType;
-  selectedPlatforms: { value: string; label: string }[];
-  type: 'general' | 'specific';
+  selectedPlatforms: SelectOption[];
 }
 
-const selectStyles = {
-  control: (base: Record<string, unknown>) => ({
-    ...base,
-    border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-    padding: '2px',
-    boxShadow: 'none',
-    backgroundColor: 'white',
-    '&:hover': { border: '1px solid #F97316' },
-    '&:focus-within': { border: '1px solid #F97316' },
-  }),
-  option: (
-    base: Record<string, unknown>,
-    { isSelected, isFocused }: { isSelected: boolean; isFocused: boolean }
-  ) => ({
-    ...base,
-    backgroundColor: isSelected ? '#F97316' : isFocused ? '#fff7ed' : 'white',
-    color: isSelected ? 'white' : '#374151',
-    fontSize: '13px',
-  }),
-  multiValue: (base: Record<string, unknown>) => ({
-    ...base,
-    backgroundColor: '#fff7ed',
-    borderRadius: '6px',
-  }),
-  multiValueLabel: (base: Record<string, unknown>) => ({
-    ...base,
-    color: '#c2410c',
-    fontWeight: '500',
-    fontSize: '12px',
-  }),
-  multiValueRemove: (base: Record<string, unknown>) => ({
-    ...base,
-    color: '#c2410c',
-    '&:hover': { backgroundColor: '#F97316', color: 'white' },
-  }),
-  placeholder: (base: Record<string, unknown>) => ({
-    ...base,
-    fontSize: '13px',
-    color: '#9ca3af',
-  }),
+const DEFAULT_FORM: CustomLabelSplitForm = {
+  percentage: "",
+  countriesType: "all",
+  selectedCountries: [],
+  platformsType: "all",
+  selectedPlatforms: [],
 };
-
-function FilterSegment({
-  value,
-  onChange,
-  labels,
-  name,
-}: {
-  value: FilterType;
-  onChange: (v: FilterType) => void;
-  labels: { all: string; except: string; only: string };
-  name: string;
-}) {
-  const options: { val: FilterType; label: string }[] = [
-    { val: 'all', label: labels.all },
-    { val: 'except', label: labels.except },
-    { val: 'only', label: labels.only },
-  ];
-  return (
-    <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 gap-0.5">
-      {options.map((opt) => (
-        <button
-          key={opt.val}
-          type="button"
-          onClick={() => onChange(opt.val)}
-          className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            value === opt.val
-              ? 'bg-white text-gray-900 border border-gray-200'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-          aria-label={`${name} ${opt.label}`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export default function CreateSplitsByCustomLabelModal({
   isOpen,
@@ -118,20 +43,15 @@ export default function CreateSplitsByCustomLabelModal({
   artisticLabels,
   songCount,
 }: CreateSplitsByCustomLabelModalProps) {
-  const [generalForm, setGeneralForm] = useState<ConditionForm>({
-    percentage: '',
-    countriesType: 'all',
-    selectedCountries: [],
-    platformsType: 'all',
-    selectedPlatforms: [],
-    type: 'general',
-  });
-  const [specificConditions, setSpecificConditions] = useState<ConditionForm[]>([]);
-  const [isGeneralExpanded, setIsGeneralExpanded] = useState(true);
+  const [form, setForm] = useState<CustomLabelSplitForm>(DEFAULT_FORM);
+  const [songIds, setSongIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  const { countryOptions, platformOptions, isLoadingFilters } =
+    useReleaseFiltersForSongs(songIds, isOpen);
 
   useEffect(() => {
     setMounted(true);
@@ -142,115 +62,52 @@ export default function CreateSplitsByCustomLabelModal({
     if (!isOpen) return;
     setErrorMessage(null);
     setResult(null);
-    setGeneralForm({
-      percentage: '',
-      countriesType: 'all',
-      selectedCountries: [],
-      platformsType: 'all',
-      selectedPlatforms: [],
-      type: 'general',
+    setForm(DEFAULT_FORM);
+
+    let active = true;
+    labelsService.getSongsByCustomLabel(labelName).then((res) => {
+      if (!active) return;
+      setSongIds((res.data?.songs ?? []).map((s) => s._id));
     });
-    setSpecificConditions([]);
-    setIsGeneralExpanded(true);
-  }, [isOpen]);
+    return () => {
+      active = false;
+    };
+  }, [isOpen, labelName]);
 
-  const updateGeneralForm = (
-    field: keyof ConditionForm,
-    value: string | readonly { value: string; label: string }[]
+  const updateForm = (
+    field: keyof CustomLabelSplitForm,
+    value: string | readonly SelectOption[]
   ) => {
-    setGeneralForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const updateSpecificCondition = (
-    index: number,
-    field: string,
-    value: string | readonly { value: string; label: string }[]
-  ) => {
-    setSpecificConditions((prev) =>
-      prev.map((c, i) => (i === index ? { ...c, [field]: value } : c))
-    );
-  };
-
-  const addSpecificCondition = () => {
-    setSpecificConditions((prev) => [
-      ...prev,
-      {
-        percentage: '',
-        fromDate: '',
-        toDate: '',
-        countriesType: 'all',
-        selectedCountries: [],
-        platformsType: 'all',
-        selectedPlatforms: [],
-        type: 'specific',
-      },
-    ]);
-  };
-
-  const removeSpecificCondition = (index: number) => {
-    setSpecificConditions((prev) => prev.filter((_, i) => i !== index));
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async () => {
     setErrorMessage(null);
+
+    const pct = parseFloat(form.percentage);
+    if (!pct || pct < 1 || pct > 100) {
+      setErrorMessage("El porcentaje debe estar entre 1 y 100.");
+      return;
+    }
+
     setIsLoading(true);
-
     try {
-      const conditions: any[] = [];
-
-      if (generalForm.percentage && parseFloat(generalForm.percentage) > 0) {
-        const pct = parseFloat(generalForm.percentage);
-        if (pct <= 0 || pct > 100) {
-          setErrorMessage('El porcentaje general debe estar entre 1 y 100.');
-          return;
-        }
-        conditions.push({
-          percentage: pct,
-          selectedCountries: generalForm.selectedCountries.map((c) => c.value),
-          countriesType: generalForm.countriesType,
-          selectedPlatforms: generalForm.selectedPlatforms.map((p) => p.value),
-          platformsType: generalForm.platformsType,
-          type: 'general',
-        });
-      }
-
-      for (let i = 0; i < specificConditions.length; i++) {
-        const cond = specificConditions[i];
-        const pct = parseFloat(cond.percentage);
-        if (!pct || pct <= 0 || pct > 100) {
-          setErrorMessage(`El porcentaje de la condición #${i + 1} debe estar entre 1 y 100.`);
-          return;
-        }
-        conditions.push({
-          fromDate: cond.fromDate,
-          toDate: cond.toDate,
-          percentage: pct,
-          selectedCountries: cond.selectedCountries.map((c) => typeof c === 'string' ? c : c.value),
-          countriesType: cond.countriesType || 'all',
-          selectedPlatforms: cond.selectedPlatforms.map((p) => typeof p === 'string' ? p : p.value),
-          platformsType: cond.platformsType || 'all',
-          type: 'specific',
-        });
-      }
-
-      if (conditions.length === 0) {
-        setErrorMessage('Configura al menos una condición con un porcentaje válido.');
-        return;
-      }
-
-      const response = await LabelsService.createSplitByCustomLabel({
+      const response = await labelsService.createSplitByCustomLabel({
         labelName,
-        conditions,
+        percentage: pct,
+        countriesType: form.countriesType,
+        selectedCountries: form.selectedCountries.map((c) => c.value),
+        platformsType: form.platformsType,
+        selectedPlatforms: form.selectedPlatforms.map((p) => p.value),
       });
 
       if (response.error) {
-        setErrorMessage(response.message || 'Error al crear los splits');
-      } else if (response.data) {
-        setResult(response.data);
+        setErrorMessage(response.message ?? "Error al crear los splits");
+        return;
       }
+      setResult(response.data);
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Error al crear los splits';
-      setErrorMessage(msg);
+      setErrorMessage(err?.response?.data?.message ?? "Error al crear los splits");
     } finally {
       setIsLoading(false);
     }
@@ -280,14 +137,10 @@ export default function CreateSplitsByCustomLabelModal({
               <Crown className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-white font-semibold text-base leading-tight">
-                  Owner Split — Label Personalizado
-                </h2>
-              </div>
+              <h2 className="text-white font-semibold text-base leading-tight">Owner Split — Label Personalizado</h2>
               <p className="text-white/80 text-xs mt-0.5 flex items-center gap-1.5">
-                <Layers className="w-3 h-3" />
-                {labelName} · {songCount} {songCount === 1 ? 'canción' : 'canciones'}
+                <Tag className="w-3 h-3" />
+                {labelName} · {songCount} {songCount === 1 ? "canción" : "canciones"}
               </p>
             </div>
           </div>
@@ -302,39 +155,20 @@ export default function CreateSplitsByCustomLabelModal({
         {/* Body */}
         <div className="flex-1 overflow-y-auto bg-[#F7F8FA] p-5 space-y-4">
           {result ? (
-            /* ── Result view ── */
             <div className="space-y-5">
               <div className="text-center">
                 <div className="w-14 h-14 bg-green-50 border border-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                   <CheckCircle className="w-7 h-7 text-green-600" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900">Splits Creados</h3>
-                <p className="text-xs text-gray-500 mt-1">Label: {labelName}</p>
+                <h3 className="text-lg font-bold text-gray-900">Splits Guardados</h3>
               </div>
 
-              {/* Grouped labels */}
-              {artisticLabels.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap p-3 bg-orange-50 border border-orange-100 rounded-xl">
-                  <Layers className="w-3.5 h-3.5 text-[#F97316] flex-shrink-0" />
-                  {artisticLabels.slice(0, 5).map((l, i) => (
-                    <span key={i} className="px-2 py-0.5 bg-orange-100 text-[#F97316] text-xs font-semibold rounded-full">
-                      {l}
-                    </span>
-                  ))}
-                  {artisticLabels.length > 5 && (
-                    <span className="text-xs text-gray-500">+{artisticLabels.length - 5} más</span>
-                  )}
-                </div>
-              )}
-
-              {/* Summary cards */}
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 {[
-                  { label: 'Total', value: result.summary?.total ?? 0, color: 'blue' },
-                  { label: 'Creados', value: result.summary?.created ?? 0, color: 'green' },
-                  { label: 'Actualizados', value: result.summary?.updated ?? 0, color: 'purple' },
-                  { label: 'Omitidos', value: result.summary?.skipped ?? 0, color: 'yellow' },
-                  { label: 'Errores', value: result.summary?.errors ?? 0, color: 'red' },
+                  { label: "Total", value: result.summary?.total ?? 0, color: "blue" },
+                  { label: "Creados", value: result.summary?.created ?? 0, color: "green" },
+                  { label: "Actualizados", value: result.summary?.updated ?? 0, color: "purple" },
+                  { label: "Errores", value: result.summary?.errors ?? 0, color: "red" },
                 ].map((s) => (
                   <div key={s.label} className={`bg-${s.color}-50 border border-${s.color}-100 rounded-xl p-3 text-center`}>
                     <p className={`text-xl font-bold text-${s.color}-600`}>{s.value}</p>
@@ -343,54 +177,14 @@ export default function CreateSplitsByCustomLabelModal({
                 ))}
               </div>
 
-              {/* Successful */}
-              {result.successful?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-700 mb-2">
-                    Procesadas ({result.successful.length})
-                  </p>
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                    {result.successful.map((item: any, i: number) => (
-                      <div
-                        key={i}
-                        className={`flex items-center justify-between p-2.5 rounded-lg border ${
-                          item.status === 'updated'
-                            ? 'bg-purple-50 border-purple-100'
-                            : 'bg-green-50 border-green-100'
-                        }`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-900 truncate">{item.trackTitle}</p>
-                          <p className="text-xs text-gray-500">
-                            {item.artistName} · <span className="text-[#F97316]">{item.artisticLabel}</span> · ${item.calculation?.totalOwed?.toFixed(2) ?? '0.00'}
-                          </p>
-                        </div>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                          item.status === 'updated'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-green-100 text-green-700'
-                        }`}>
-                          {item.status === 'updated' ? 'Actualizado' : 'Creado'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Failed */}
               {result.failed?.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-700 mb-2">
-                    Con error ({result.failed.length})
-                  </p>
+                  <p className="text-xs font-semibold text-gray-700 mb-2">Con error ({result.failed.length})</p>
                   <div className="space-y-1.5 max-h-40 overflow-y-auto">
                     {result.failed.map((item: any, i: number) => (
                       <div key={i} className="p-2.5 rounded-lg bg-red-50 border border-red-100">
                         <p className="text-sm font-medium text-gray-900">{item.trackTitle}</p>
-                        <p className="text-xs text-red-600">
-                          <span className="text-[#F97316]">{item.artisticLabel}</span> · {item.reason}
-                        </p>
+                        <p className="text-xs text-red-600">{item.reason}</p>
                       </div>
                     ))}
                   </div>
@@ -398,230 +192,82 @@ export default function CreateSplitsByCustomLabelModal({
               )}
             </div>
           ) : (
-            /* ── Form view ── */
             <>
-              {/* Info banner */}
               <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
                 <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                <div className="text-xs text-blue-700">
-                  <p>
-                    La configuración se aplicará a las <strong>{songCount}</strong> canciones del label personalizado <strong>{labelName}</strong>.
-                  </p>
-                  {artisticLabels.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                      <span className="text-blue-500">Agrupa:</span>
-                      {artisticLabels.slice(0, 3).map((l, i) => (
-                        <span key={i} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-semibold">{l}</span>
-                      ))}
-                      {artisticLabels.length > 3 && (
-                        <span className="text-[10px] text-blue-500">+{artisticLabels.length - 3} más</span>
-                      )}
-                    </div>
+                <p className="text-xs text-blue-700">
+                  La configuración se aplicará a las <strong>{songCount}</strong> canciones del label personalizado{" "}
+                  <strong>{labelName}</strong> ({artisticLabels.join(", ")}).
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl border border-gray-200 px-5 py-5 space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                    <Settings className="w-4 h-4 text-[#F97316]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Configuración del Split</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Porcentaje del owner y filtros opcionales</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    <Percent className="w-3.5 h-3.5" /> Porcentaje
+                  </label>
+                  <div className="relative max-w-xs">
+                    <input
+                      type="number" min="1" max="100" step="0.01" placeholder="0.00"
+                      value={form.percentage}
+                      onChange={(e) => updateForm("percentage", e.target.value)}
+                      className="w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-900 font-semibold focus:outline-none focus:border-[#F97316] transition-colors"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">%</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    <Globe className="w-3.5 h-3.5" /> Países
+                  </label>
+                  <FilterSegment
+                    value={form.countriesType}
+                    onChange={(v) => updateForm("countriesType", v)}
+                    labels={{ all: "Todos", except: "Excepto", only: "Solo" }}
+                    name="custom-label-países"
+                  />
+                  {form.countriesType !== "all" && (
+                    <Select
+                      isMulti isLoading={isLoadingFilters} options={countryOptions}
+                      value={form.selectedCountries}
+                      onChange={(s) => updateForm("selectedCountries", s ?? [])}
+                      styles={selectStyles} placeholder="Seleccionar países..."
+                      noOptionsMessage={() => "No hay países disponibles"}
+                    />
                   )}
                 </div>
-              </div>
 
-              {/* General condition */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setIsGeneralExpanded((v) => !v)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-100"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-                      <Settings className="w-4 h-4 text-[#F97316]" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Condición General</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Aplica cuando no hay condiciones específicas activas
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {generalForm.percentage && (
-                      <span className="px-2.5 py-1 bg-orange-50 text-[#F97316] text-xs font-semibold rounded-full">
-                        {generalForm.percentage}%
-                      </span>
-                    )}
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isGeneralExpanded ? 'rotate-180' : ''}`} />
-                  </div>
-                </button>
-
-                {isGeneralExpanded && (
-                  <div className="px-5 py-5 space-y-5">
-                    <div className="space-y-1.5">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                        <Percent className="w-3.5 h-3.5" /> Porcentaje
-                      </label>
-                      <div className="relative max-w-xs">
-                        <input
-                          type="number" min="0" max="100" step="0.01" placeholder="0.00"
-                          value={generalForm.percentage}
-                          onChange={(e) => updateGeneralForm('percentage', e.target.value)}
-                          className="w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-900 font-semibold focus:outline-none focus:border-[#F97316] transition-colors"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">%</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                        <Globe className="w-3.5 h-3.5" /> Países
-                      </label>
-                      <FilterSegment
-                        value={generalForm.countriesType}
-                        onChange={(v) => updateGeneralForm('countriesType', v)}
-                        labels={{ all: 'Todos', except: 'Excepto', only: 'Solo' }}
-                        name="países"
-                      />
-                      {generalForm.countriesType !== 'all' && (
-                        <Select isMulti options={countries} value={generalForm.selectedCountries}
-                          onChange={(s) => updateGeneralForm('selectedCountries', s || [])}
-                          styles={selectStyles} placeholder="Seleccionar países..."
-                          noOptionsMessage={() => 'No hay países disponibles'}
-                        />
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                        <Music className="w-3.5 h-3.5" /> Plataformas
-                      </label>
-                      <FilterSegment
-                        value={generalForm.platformsType}
-                        onChange={(v) => updateGeneralForm('platformsType', v)}
-                        labels={{ all: 'Todas', except: 'Excepto', only: 'Solo' }}
-                        name="plataformas"
-                      />
-                      {generalForm.platformsType !== 'all' && (
-                        <Select isMulti options={platforms} value={generalForm.selectedPlatforms}
-                          onChange={(s) => updateGeneralForm('selectedPlatforms', s || [])}
-                          styles={selectStyles} placeholder="Seleccionar plataformas..."
-                          noOptionsMessage={() => 'No hay plataformas disponibles'}
-                        />
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Specific conditions */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-[#F97316]" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Condiciones Específicas</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Aplican por período, país o plataforma</p>
-                    </div>
-                  </div>
-                  <button type="button" onClick={addSpecificCondition}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F97316] hover:bg-orange-600 text-white text-xs font-semibold rounded-lg transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Añadir
-                  </button>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    <Music className="w-3.5 h-3.5" /> Plataformas
+                  </label>
+                  <FilterSegment
+                    value={form.platformsType}
+                    onChange={(v) => updateForm("platformsType", v)}
+                    labels={{ all: "Todas", except: "Excepto", only: "Solo" }}
+                    name="custom-label-plataformas"
+                  />
+                  {form.platformsType !== "all" && (
+                    <Select
+                      isMulti isLoading={isLoadingFilters} options={platformOptions}
+                      value={form.selectedPlatforms}
+                      onChange={(s) => updateForm("selectedPlatforms", s ?? [])}
+                      styles={selectStyles} placeholder="Seleccionar plataformas..."
+                      noOptionsMessage={() => "No hay plataformas disponibles"}
+                    />
+                  )}
                 </div>
-
-                {specificConditions.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
-                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-                      <Calendar className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">Sin condiciones específicas</p>
-                    <p className="text-xs text-gray-400 max-w-xs">
-                      Agrega condiciones para definir porcentajes distintos según período, país o plataforma.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="p-5 space-y-4">
-                    {specificConditions.map((cond, idx) => (
-                      <div key={idx} className="bg-[#F7F8FA] rounded-xl border border-gray-200 p-4 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-md bg-orange-100 flex items-center justify-center">
-                              <span className="text-[10px] font-bold text-[#F97316]">{idx + 1}</span>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900">Condición específica</span>
-                          </div>
-                          <button type="button" onClick={() => removeSpecificCondition(idx)}
-                            className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center transition-colors text-gray-400 hover:text-red-500"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Desde</label>
-                            <input type="date" value={cond.fromDate || ''}
-                              onChange={(e) => updateSpecificCondition(idx, 'fromDate', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-[#F97316] transition-colors bg-white"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Hasta</label>
-                            <input type="date" value={cond.toDate || ''}
-                              onChange={(e) => updateSpecificCondition(idx, 'toDate', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-[#F97316] transition-colors bg-white"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Porcentaje</label>
-                            <div className="relative">
-                              <input type="number" min="0" max="100" step="0.01"
-                                value={cond.percentage}
-                                onChange={(e) => updateSpecificCondition(idx, 'percentage', e.target.value)}
-                                className="w-full pl-3 pr-8 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 font-semibold focus:outline-none focus:border-[#F97316] transition-colors bg-white"
-                              />
-                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                              <Globe className="w-3 h-3" /> Países
-                            </label>
-                            <FilterSegment
-                              value={cond.countriesType}
-                              onChange={(v) => updateSpecificCondition(idx, 'countriesType', v)}
-                              labels={{ all: 'Todos', except: 'Excepto', only: 'Solo' }}
-                              name={`países-${idx}`}
-                            />
-                            {cond.countriesType !== 'all' && (
-                              <Select isMulti options={countries} value={cond.selectedCountries}
-                                onChange={(s) => updateSpecificCondition(idx, 'selectedCountries', s || [])}
-                                styles={selectStyles} placeholder="Seleccionar..."
-                              />
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                              <Music className="w-3 h-3" /> Plataformas
-                            </label>
-                            <FilterSegment
-                              value={cond.platformsType}
-                              onChange={(v) => updateSpecificCondition(idx, 'platformsType', v)}
-                              labels={{ all: 'Todas', except: 'Excepto', only: 'Solo' }}
-                              name={`plataformas-${idx}`}
-                            />
-                            {cond.platformsType !== 'all' && (
-                              <Select isMulti options={platforms} value={cond.selectedPlatforms}
-                                onChange={(s) => updateSpecificCondition(idx, 'selectedPlatforms', s || [])}
-                                styles={selectStyles} placeholder="Seleccionar..."
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </>
           )}
@@ -639,7 +285,7 @@ export default function CreateSplitsByCustomLabelModal({
             <button type="button" onClick={handleClose}
               className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
             >
-              {result ? 'Cerrar' : 'Cancelar'}
+              {result ? "Cerrar" : "Cancelar"}
             </button>
             {!result && (
               <button type="button" onClick={handleSubmit} disabled={isLoading}
@@ -650,7 +296,7 @@ export default function CreateSplitsByCustomLabelModal({
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                {isLoading ? 'Creando...' : 'Crear Splits'}
+                {isLoading ? "Guardando..." : "Guardar Splits"}
               </button>
             )}
           </div>

@@ -256,8 +256,7 @@ export default function LabelDetail() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredSongs.map((song) => {
-                const ownerPct =
-                  song.ownerSplit?.conditions?.find((c: any) => c.type === 'general')?.percentage ?? null;
+                const ownerPct = song.ownerSplit?.percentage ?? null;
 
                 return (
                   <tr

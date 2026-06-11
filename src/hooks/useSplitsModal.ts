@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
-import { countries, platforms } from "@/const";
-import { splitsService } from "@/services/splits";
-import type { CollaboratorFormData, CollaboratorWithSplit } from "@/types";
-import type { SplitConditionFormData } from "@/types";
+import { songSplitsService } from "@/services/songSplits";
+import { useReleaseFilters } from "@/hooks/useReleaseFilters";
+import type {
+  CollaboratorFormData,
+  CollaboratorWithSplit,
+  SelectOption,
+} from "@/types";
 
 interface UseSplitsModalParams {
   isOpen: boolean;
@@ -10,11 +13,9 @@ interface UseSplitsModalParams {
   songId: string;
 }
 
-const toSelectOptions = (
-  values: string[],
-  opts: { value: string; label: string }[]
-): { value: string; label: string }[] =>
-  (values ?? []).map((v) => opts.find((o) => o.value === v) ?? { value: v, label: v });
+/** Convierte strings crudos de la BD en opciones para react-select. */
+const toSelectOptions = (values: string[]): SelectOption[] =>
+  (values ?? []).map((value) => ({ value, label: value }));
 
 const defaultFormData = (): CollaboratorFormData => ({
   percentage: "",
@@ -22,13 +23,12 @@ const defaultFormData = (): CollaboratorFormData => ({
   selectedCountries: [],
   platformsType: "all",
   selectedPlatforms: [],
-  splitConditions: [],
-  type: "general",
 });
 
 /**
- * Gestiona el estado y la lógica del modal de configuración de splits.
- * Separa toda la lógica del componente visual SplitsModal.
+ * Gestiona el estado y la lógica del modal de configuración de splits de
+ * colaborador. Cada colaborador tiene una sola regla: un porcentaje obligatorio
+ * y filtros opcionales de país y plataforma.
  */
 export function useSplitsModal({ isOpen, collaborators, songId }: UseSplitsModalParams) {
   const [collaboratorForms, setCollaboratorForms] = useState<Record<string, CollaboratorFormData>>({});
@@ -36,6 +36,11 @@ export function useSplitsModal({ isOpen, collaborators, songId }: UseSplitsModal
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  const { countryOptions, platformOptions, isLoadingFilters } = useReleaseFilters(
+    songId,
+    isOpen
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -49,25 +54,15 @@ export function useSplitsModal({ isOpen, collaborators, songId }: UseSplitsModal
     const initialForms: Record<string, CollaboratorFormData> = {};
 
     for (const collaborator of collaborators) {
-      const conditions = collaborator.split?.conditions ?? [];
-      if (conditions.length === 0) continue;
-
-      const general = conditions.find((c) => c.type === "general");
-      const specifics = conditions.filter((c) => c.type === "specific");
+      const split = collaborator.split;
+      if (!split) continue;
 
       initialForms[collaborator.id] = {
-        percentage: general ? String(general.percentage) : "",
-        countriesType: general?.countriesType ?? "all",
-        selectedCountries: toSelectOptions(general?.selectedCountries ?? [], countries),
-        platformsType: general?.platformsType ?? "all",
-        selectedPlatforms: toSelectOptions(general?.selectedPlatforms ?? [], platforms),
-        splitConditions: specifics.map((c): SplitConditionFormData => ({
-          ...c,
-          percentage: c.percentage,
-          selectedCountries: toSelectOptions(c.selectedCountries ?? [], countries),
-          selectedPlatforms: toSelectOptions(c.selectedPlatforms ?? [], platforms),
-        })),
-        type: "general",
+        percentage: String(split.percentage ?? ""),
+        countriesType: split.countriesType ?? "all",
+        selectedCountries: toSelectOptions(split.selectedCountries ?? []),
+        platformsType: split.platformsType ?? "all",
+        selectedPlatforms: toSelectOptions(split.selectedPlatforms ?? []),
       };
     }
 
@@ -87,7 +82,7 @@ export function useSplitsModal({ isOpen, collaborators, songId }: UseSplitsModal
   const updateForm = (
     collaboratorId: string,
     field: keyof CollaboratorFormData,
-    value: string | readonly { value: string; label: string }[]
+    value: string | readonly SelectOption[]
   ) => {
     setCollaboratorForms((prev) => ({
       ...prev,
@@ -95,98 +90,32 @@ export function useSplitsModal({ isOpen, collaborators, songId }: UseSplitsModal
     }));
   };
 
-  const updateCondition = (
-    collaboratorId: string,
-    conditionIndex: number,
-    field: string,
-    value: string | readonly { value: string; label: string }[] | readonly string[]
-  ) => {
-    setCollaboratorForms((prev) => {
-      const form = prev[collaboratorId] ?? defaultFormData();
-      return {
-        ...prev,
-        [collaboratorId]: {
-          ...form,
-          splitConditions: form.splitConditions.map((c, i) =>
-            i === conditionIndex ? { ...c, [field]: value } : c
-          ),
-        },
-      };
-    });
-  };
-
-  const addCondition = (collaboratorId: string) => {
-    setCollaboratorForms((prev) => {
-      const form = prev[collaboratorId] ?? defaultFormData();
-      const newCondition: SplitConditionFormData = {
-        percentage: 0,
-        selectedCountries: [],
-        countriesType: "all",
-        selectedPlatforms: [],
-        platformsType: "all",
-        type: "specific",
-      };
-      return {
-        ...prev,
-        [collaboratorId]: {
-          ...form,
-          splitConditions: [...form.splitConditions, newCondition],
-        },
-      };
-    });
-  };
-
-  const removeCondition = (collaboratorId: string, conditionIndex: number) => {
-    setCollaboratorForms((prev) => {
-      const form = prev[collaboratorId] ?? defaultFormData();
-      return {
-        ...prev,
-        [collaboratorId]: {
-          ...form,
-          splitConditions: form.splitConditions.filter((_, i) => i !== conditionIndex),
-        },
-      };
-    });
-  };
-
   const saveSplit = async () => {
     setErrorMessage(null);
     setIsLoading(true);
 
     try {
-      const splitsToCreate = Object.entries(collaboratorForms)
-        .filter(([, formData]) => formData.percentage && parseFloat(formData.percentage) > 0)
-        .map(([collaboratorId, formData]) => ({
-          songId,
-          collaboratorId,
-          conditions: [
-            ...formData.splitConditions.map((condition) => ({
-              fromDate: condition.fromDate,
-              toDate: condition.toDate,
-              percentage: Number(condition.percentage),
-              selectedCountries: (condition.selectedCountries as { value: string }[]).map((c) => c.value),
-              countriesType: condition.countriesType,
-              selectedPlatforms: (condition.selectedPlatforms as { value: string }[]).map((p) => p.value),
-              platformsType: condition.platformsType,
-              type: condition.type,
-            })),
-            {
-              percentage: parseFloat(formData.percentage),
-              selectedCountries: formData.selectedCountries.map((c) => c.value),
-              selectedPlatforms: formData.selectedPlatforms.map((p) => p.value),
-              countriesType: formData.countriesType,
-              platformsType: formData.platformsType,
-              type: "general" as const,
-            },
-          ],
-        }));
+      const pending = Object.entries(collaboratorForms).filter(
+        ([, form]) => form.percentage && parseFloat(form.percentage) > 0
+      );
 
-      if (splitsToCreate.length === 0) {
+      if (pending.length === 0) {
         setErrorMessage("Configura al menos un colaborador con un porcentaje válido.");
         return;
       }
 
-      await splitsService.createSplit(splitsToCreate);
+      for (const [collaboratorId, form] of pending) {
+        await songSplitsService.createCollaboratorSplit({
+          songId,
+          collaboratorId,
+          percentage: parseFloat(form.percentage),
+          countriesType: form.countriesType,
+          selectedCountries: form.selectedCountries.map((c) => c.value),
+          platformsType: form.platformsType,
+          selectedPlatforms: form.selectedPlatforms.map((p) => p.value),
+        });
+      }
+
       setTimeout(() => window.location.reload(), 300);
     } catch (error: unknown) {
       const err = error as {
@@ -208,13 +137,14 @@ export function useSplitsModal({ isOpen, collaborators, songId }: UseSplitsModal
     (f) => f.percentage && parseFloat(f.percentage) > 0
   ).length;
 
-  const hasAnySavedSplit = Object.keys(collaboratorForms).some(
-    (id) => (collaborators.find((c) => c.id === id)?.split?.conditions ?? []).length > 0
-  );
+  const hasAnySavedSplit = collaborators.some((c) => Boolean(c.split));
 
   return {
     mounted,
     isLoading,
+    isLoadingFilters,
+    countryOptions,
+    platformOptions,
     errorMessage,
     collaboratorForms,
     expandedCollaborators,
@@ -223,9 +153,6 @@ export function useSplitsModal({ isOpen, collaborators, songId }: UseSplitsModal
     getForm,
     toggleExpanded,
     updateForm,
-    updateCondition,
-    addCondition,
-    removeCondition,
     saveSplit,
   };
 }

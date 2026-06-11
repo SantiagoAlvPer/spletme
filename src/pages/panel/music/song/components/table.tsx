@@ -47,7 +47,7 @@ interface Song {
   createdAt?: string;
   updatedAt?: string;
   requesterRole?: "admin" | "collaborator" | "label";
-  ownerEarnings?: Array<{ calculation?: { amountToPay?: number } }>;
+  ownerEarnings?: number;
   collaboratorsEarnings?: number;
 }
 
@@ -106,9 +106,9 @@ export default function Table({ collaborators, songId, song, isOwner = false }: 
   ).toLowerCase();
   const isLabelUser = rawUserType.includes("label");
   const hasOwnerSplit = Boolean(
-    ((song as any)?.ownerId?.split?.conditions ?? []).length > 0 ||
-      ((song as any)?.owner?.split?.conditions ?? []).length > 0 ||
-      ((song as any)?.ownerSplit?.conditions ?? []).length > 0
+    (song as any)?.ownerId?.split ||
+      (song as any)?.owner?.split ||
+      (song as any)?.ownerSplit
   );
 
   const addToast = (type: ValidationToastType, message: string) => {
