@@ -7,7 +7,13 @@ import {
   BarChart3,
   Award,
   ArrowLeft,
+  Send,
+  Clock,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
+import RoyaltiesService from "../../../../services/royalties";
+import type { RoyaltyRequest } from "../../../../services/royalties";
 import AddCollaborator from "../../collaborators/components/addCollaborator";
 import Table from "./components/table";
 import { useParams, useNavigate } from "react-router-dom";
@@ -51,6 +57,10 @@ export default function Song() {
     totalEgresos: number;
   } | null>(null);
 
+  const [royaltyRequest, setRoyaltyRequest] = useState<RoyaltyRequest | null>(null);
+  const [royaltyLoading, setRoyaltyLoading] = useState(false);
+  const [royaltySubmitting, setRoyaltySubmitting] = useState(false);
+
   const addToast = (
     type: ValidationToastType,
     message: string,
@@ -86,6 +96,46 @@ export default function Song() {
     };
     fetchBalance();
   }, [id]);
+
+  // Load existing royalty request for this song (collaborator view)
+  useEffect(() => {
+    if (!id) return;
+    setRoyaltyLoading(true);
+    RoyaltiesService.getMyRequests().then((res) => {
+      const list: RoyaltyRequest[] = Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+          ? res
+          : [];
+      const match = list.find(
+        (r) =>
+          (typeof r.songId === "object" ? r.songId._id : r.songId) === id,
+      );
+      setRoyaltyRequest(match ?? null);
+      setRoyaltyLoading(false);
+    });
+  }, [id]);
+
+  const handleRequestRoyalties = async () => {
+    if (!id || royaltySubmitting) return;
+    setRoyaltySubmitting(true);
+    const res = await RoyaltiesService.requestRoyalties(id);
+    if (res) {
+      // Re-fetch to get the created request with full data
+      const updated = await RoyaltiesService.getMyRequests();
+      const list: RoyaltyRequest[] = Array.isArray(updated?.data)
+        ? updated.data
+        : Array.isArray(updated)
+          ? updated
+          : [];
+      const match = list.find(
+        (r) =>
+          (typeof r.songId === "object" ? r.songId._id : r.songId) === id,
+      );
+      setRoyaltyRequest(match ?? null);
+    }
+    setRoyaltySubmitting(false);
+  };
 
   const getUserDisplayPercentage = () => {
     const collaboratorPercentage = getCurrentUserPercentage();
@@ -299,11 +349,7 @@ export default function Song() {
         </div>
         <div className="grid grid-cols-4 gap-4">
           {/* Hero Card */}
-          <div
-            className={`bg-white border border-gray-200 rounded-xl p-6 flex gap-6 ${
-              isOwnerUser ? "col-span-3" : "col-span-4"
-            }`}
-          >
+          <div className="bg-white border border-gray-200 rounded-xl p-6 flex gap-6 col-span-3">
             {/* Album Art */}
             <div className="w-48 h-48 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center">
               {song?.spotifyData?.album?.images?.length > 0 ? (
@@ -336,9 +382,7 @@ export default function Song() {
               </div>
 
               {/* Stat Cards */}
-              <div
-                className={`grid gap-2 ${isOwnerUser ? "grid-cols-3" : "grid-cols-2"}`}
-              >
+              <div className="grid gap-2 grid-cols-3">
                 {/* Streams */}
                 <div className="bg-blue-50 rounded-xl p-4 space-y-2 ">
                   <div className="flex items-center gap-2">
@@ -374,8 +418,7 @@ export default function Song() {
                 </div>
 
                 {/* My Percentage */}
-                {isOwnerUser && (
-                  <div className="bg-purple-50 rounded-xl p-4 space-y-2">
+                <div className="bg-purple-50 rounded-xl p-4 space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                         <Award className="w-4 h-4 text-purple-600" />
@@ -393,19 +436,16 @@ export default function Song() {
                       </span>
                     </div>
                   </div>
-                )}
               </div>
             </div>
           </div>
 
-          {/* Payment Banner */}
+          {/* Payment Banner — owner */}
           {isOwnerUser && (
             <div className="bg-[#F97316] rounded-xl p-6 col-span-1 flex flex-col justify-between relative overflow-hidden">
-              {/* Decoración de fondo */}
               <div className="absolute -top-8 -right-8 w-36 h-36 rounded-full bg-white/10 pointer-events-none" />
               <div className="absolute -bottom-10 -left-6 w-28 h-28 rounded-full bg-white/10 pointer-events-none" />
 
-              {/* Próxima liquidación */}
               <div className="relative z-10">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -422,7 +462,6 @@ export default function Song() {
 
               <div className="relative z-10 my-5 border-t border-white/20" />
 
-              {/* Total + botón */}
               <div className="relative z-10 space-y-4">
                 <div>
                   <p className="text-white/70 text-[11px] font-semibold uppercase tracking-wider mb-1">
@@ -439,6 +478,143 @@ export default function Song() {
                   <DollarSign className="w-4 h-4" />
                   Pagar a todos
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Royalties Banner — collaborator */}
+          {!isOwnerUser && (
+            <div className="bg-[#0F172A] rounded-xl p-6 col-span-1 flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute -top-8 -right-8 w-36 h-36 rounded-full bg-white/5 pointer-events-none" />
+              <div className="absolute -bottom-10 -left-6 w-28 h-28 rounded-full bg-white/5 pointer-events-none" />
+
+              {/* Split info */}
+              <div className="relative z-10 flex flex-col gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-[#F97316]/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Award className="w-4 h-4 text-[#F97316]" />
+                  </div>
+                  <span className="text-white/70 text-xs font-semibold uppercase tracking-wider">
+                    Mi participación
+                  </span>
+                </div>
+
+                <div className="flex items-end gap-3 pl-10">
+                  <div className="flex flex-col">
+                    <span className="text-white/50 text-[10px] uppercase tracking-wider mb-0.5">
+                      Split
+                    </span>
+                    <span className="text-[#F97316] text-3xl font-bold tracking-tight">
+                      {getUserDisplayPercentage()}%
+                    </span>
+                  </div>
+                  <div className="flex flex-col mb-1">
+                    <span className="text-white/50 text-[10px] uppercase tracking-wider mb-0.5">
+                      Estimado
+                    </span>
+                    <span className="text-white text-lg font-bold">
+                      ${getUserDisplayAmount()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative z-10 my-4 border-t border-white/10" />
+
+              {/* Request status / button */}
+              <div className="relative z-10 space-y-3">
+                {royaltyLoading ? (
+                  <div className="flex items-center justify-center py-2">
+                    <div className="w-5 h-5 border-2 border-[#F97316] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : royaltyRequest ? (
+                  <>
+                    {royaltyRequest.status === "pending" && (
+                      <div className="flex items-center gap-2.5 px-3 py-3 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+                        <Clock className="w-4 h-4 text-[#F97316] flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="text-[#F97316] text-xs font-bold">
+                            Solicitud pendiente
+                          </span>
+                          <span className="text-white/50 text-[10px]">
+                            Esperando respuesta del owner
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {royaltyRequest.status === "accepted" && (
+                      <div className="flex items-center gap-2.5 px-3 py-3 bg-green-500/10 border border-green-500/20 rounded-xl">
+                        <CheckCircle className="w-4 h-4 text-[#34D399] flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="text-[#34D399] text-xs font-bold">
+                            Solicitud aceptada
+                          </span>
+                          <span className="text-white/50 text-[10px]">
+                            El owner aprobó tu solicitud
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {royaltyRequest.status === "rejected" && (
+                      <div className="flex items-center gap-2.5 px-3 py-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                        <XCircle className="w-4 h-4 text-[#F43F5E] flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="text-[#F43F5E] text-xs font-bold">
+                            Solicitud rechazada
+                          </span>
+                          <span className="text-white/50 text-[10px]">
+                            Puedes volver a solicitar
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {royaltyRequest.status === "rejected" && (
+                      <button
+                        onClick={handleRequestRoyalties}
+                        disabled={royaltySubmitting}
+                        className="w-full flex items-center justify-center gap-2 bg-[#F97316] hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-sm px-4 py-3 rounded-xl active:scale-[0.98] transition-all"
+                      >
+                        {royaltySubmitting ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Solicitar de nuevo
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-1">
+                        Ingresos netos canción
+                      </p>
+                      <p className="text-white text-2xl font-bold tracking-tight">
+                        $
+                        {(song?.totalNetIncome ?? 0).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleRequestRoyalties}
+                      disabled={royaltySubmitting}
+                      className="w-full flex items-center justify-center gap-2 bg-[#F97316] hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-sm px-4 py-3 rounded-xl active:scale-[0.98] transition-all"
+                    >
+                      {royaltySubmitting ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          Solicitar regalías
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
