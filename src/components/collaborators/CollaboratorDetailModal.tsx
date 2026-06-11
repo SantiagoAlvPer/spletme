@@ -105,7 +105,7 @@ const getPlatformMeta = (raw: string) => {
 export function CollaboratorDetailModal({
   collaborator,
   onClose,
-}: CollaboratorDetailModalProps
+}: CollaboratorDetailModalProps) {
   const [detail, setDetail] = useState<ApiCollaboratorDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
