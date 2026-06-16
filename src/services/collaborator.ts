@@ -1,13 +1,19 @@
 import { apiClient } from "@/infrastructure/http/axiosClient";
+import type { ApiCollaboratorDetail } from "@/types/collaborator.types";
+
+export interface CollaboratorListResponse {
+  collaborators: ApiCollaboratorDetail[];
+  total: number;
+}
 
 class CollaboratorService {
   private readonly BASE = "/collaborators";
 
-  /** Obtiene todos los colaboradores del owner autenticado con métricas por canción */
-  async getAll() {
+  /** Obtiene todos los colaboradores del owner autenticado con participación y canciones */
+  async getAll(): Promise<CollaboratorListResponse | null> {
     try {
       const response = await apiClient.get(this.BASE);
-      return response.data;
+      return response.data?.data ?? response.data ?? null;
     } catch {
       return null;
     }

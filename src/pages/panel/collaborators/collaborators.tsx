@@ -8,7 +8,11 @@ import { AddCollaboratorSidebar } from "@/components/collaborators/AddCollaborat
 import { InviteCollaboratorModal } from "@/components/collaborators/InviteCollaboratorModal";
 import { RecentPaymentsSection } from "@/components/collaborators/RecentPaymentsSection";
 import type { Collaborator, CollaboratorPayment } from "@/types";
+import type { ApiCollaboratorDetail } from "@/types/collaborator.types";
 import CollaboratorService from "@/services/collaborator";
+import type { CollaboratorListResponse } from "@/services/collaborator";
+
+type ApiCollaborator = ApiCollaboratorDetail;
 
 const AVATAR_PALETTE = [
   { bg: "#FED7AA", text: "#9A3412" },
@@ -19,48 +23,12 @@ const AVATAR_PALETTE = [
   { bg: "#FEF3C7", text: "#92400E" },
 ];
 
-interface ApiCollaborator {
-  userId: string;
-  name: string;
-  email: string;
-  role: string;
-  songCount: number;
-  songPresencePercentage: number;
-  activeSplits: number;
-  splitPercentage: number | null;
-  totalPaid: number;
-  paymentStatus: string;
-  isActive: boolean;
-  hasWallet: boolean;
-  hasActiveStripeAccount: boolean;
-}
-
-interface ApiSummary {
-  totalCollaborators: number;
-  totalLabels: number;
-  byRole: { collaborator: number; label: number };
-  activeSplits: number;
-  totalAmountSent: number;
-  totalAmountReceived: number;
-}
-
-interface MetricsResponse {
-  summary: ApiSummary;
-  collaborators: ApiCollaborator[];
-}
-
 const getInitials = (name: string) =>
   name
     .split(" ")
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
-
-const resolveStatus = (c: ApiCollaborator): Collaborator["status"] => {
-  if (!c.hasWallet) return "no_wallet";
-  if (c.paymentStatus === "pending") return "pending";
-  return "active";
-};
 
 const adaptCollaborator = (raw: ApiCollaborator, idx: number): Collaborator => {
   const palette = AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
@@ -71,10 +39,11 @@ const adaptCollaborator = (raw: ApiCollaborator, idx: number): Collaborator => {
     initials: getInitials(raw.name),
     avatarBg: palette.bg,
     avatarText: palette.text,
-    songs: raw.songCount,
-    songPresencePercentage: raw.songPresencePercentage ?? 0,
-    paid: raw.totalPaid,
-    status: resolveStatus(raw),
+    songs: raw.participation?.songCount ?? 0,
+    songPresencePercentage: raw.participation?.presencePercentage ?? 0,
+    avgSplitPercentage: raw.participation?.avgSplitPercentage ?? 0,
+    paid: raw.participation?.totalNetIncome ?? 0,
+    status: "active",
     role: raw.role,
   };
 };
@@ -118,7 +87,7 @@ interface SongForInvite {
 export default function Collaborators() {
 
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [metrics, setMetrics] = useState<ApiSummary | null>(null);
+  const [listResponse, setListResponse] = useState<CollaboratorListResponse | null>(null);
   const [featuredId, setFeaturedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -126,10 +95,9 @@ export default function Collaborators() {
   const [selectedSong, setSelectedSong] = useState<SongForInvite | null>(null);
 
   useEffect(() => {
-    CollaboratorService.getMetrics().then((response) => {
-      const payload: MetricsResponse | null = response?.data ?? null;
+    CollaboratorService.getAll().then((payload) => {
       if (payload) {
-        setMetrics(payload.summary);
+        setListResponse(payload);
         const list = payload.collaborators.map(adaptCollaborator);
         setCollaborators(list);
         if (list.length > 0) setFeaturedId(list[0].id);
@@ -140,10 +108,15 @@ export default function Collaborators() {
 
   const featured = collaborators.find((c) => c.id === featuredId) ?? collaborators[0];
 
-  const totalSent = metrics?.totalAmountSent ?? 0;
-  const totalReceived = metrics?.totalAmountReceived ?? 0;
-  const activeSplits = metrics?.activeSplits ?? 0;
-  const pendingPayments = collaborators.filter((c) => c.status === "pending").length;
+  const totalSent = listResponse?.collaborators?.reduce(
+    (sum, c) => sum + (c.participation?.totalNetIncome ?? 0),
+    0,
+  ) ?? 0;
+  const activeSplits = listResponse?.collaborators?.reduce(
+    (sum, c) => sum + (c.songs?.filter((s) => s.split !== null).length ?? 0),
+    0,
+  ) ?? 0;
+  const pendingPayments = 0;
 
   return (
     <div className="min-h-screen bg-[#F7F8FA]">
@@ -164,9 +137,9 @@ export default function Collaborators() {
         </div>
 
         <CollaboratorsStatsGrid
-          totalCollaborators={loading ? 0 : (metrics?.totalCollaborators ?? collaborators.length)}
+          totalCollaborators={loading ? 0 : (listResponse?.total ?? collaborators.length)}
           totalSent={loading ? "$0.00" : `$${totalSent.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
-          totalReceived={loading ? "$0.00" : `$${totalReceived.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+          totalReceived="$0.00"
           activeSplits={loading ? 0 : activeSplits}
           pendingPayments={loading ? 0 : pendingPayments}
         />

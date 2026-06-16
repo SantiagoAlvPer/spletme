@@ -2,6 +2,13 @@ import { apiClient } from "@/infrastructure/http/axiosClient";
 
 export type RoyaltyStatus = "pending" | "accepted" | "rejected";
 
+export interface RoyaltyRequestResponse {
+  requestId: string;
+  status: "pending";
+  splitPercentage: number;
+  calculatedAmount: number;
+}
+
 export interface RoyaltyRequest {
   _id: string;
   songId: {
@@ -24,7 +31,7 @@ class RoyaltiesService {
   private readonly BASE = "/royalties";
 
   /** Collaborator requests royalties for a song */
-  async requestRoyalties(songId: string) {
+  async requestRoyalties(songId: string): Promise<RoyaltyRequestResponse | null> {
     try {
       const response = await apiClient.post(`${this.BASE}/request`, {
         songId,

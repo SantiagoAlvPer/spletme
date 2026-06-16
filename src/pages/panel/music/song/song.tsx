@@ -382,7 +382,7 @@ export default function Song() {
               </div>
 
               {/* Stat Cards */}
-              <div className="grid gap-2 grid-cols-3">
+              <div className={`grid gap-2 ${isOwnerUser ? "grid-cols-3" : "grid-cols-2"}`}>
                 {/* Streams */}
                 <div className="bg-blue-50 rounded-xl p-4 space-y-2 ">
                   <div className="flex items-center gap-2">
@@ -417,8 +417,9 @@ export default function Song() {
                   </p>
                 </div>
 
-                {/* My Percentage */}
-                <div className="bg-purple-50 rounded-xl p-4 space-y-2">
+                {/* My Percentage — owner only */}
+                {isOwnerUser && (
+                  <div className="bg-purple-50 rounded-xl p-4 space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                         <Award className="w-4 h-4 text-purple-600" />
@@ -436,6 +437,7 @@ export default function Song() {
                       </span>
                     </div>
                   </div>
+                )}
               </div>
             </div>
           </div>

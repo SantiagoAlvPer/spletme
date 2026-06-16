@@ -52,8 +52,8 @@ export function CollaboratorTableRow({
         {collaborator.songs}
       </td>
       <td className="px-3 py-4 text-[13px] text-center font-semibold text-[#F97316]">
-        {collaborator.songPresencePercentage > 0
-          ? `${(collaborator.songPresencePercentage * 100).toFixed(1)}%`
+        {collaborator.avgSplitPercentage > 0
+          ? `${(collaborator.avgSplitPercentage * 100).toFixed(1)}%`
           : "—"}
       </td>
       <td className="px-3 py-4 text-[13px] text-center font-semibold text-[#F97316]">

@@ -32,8 +32,11 @@ const useCurrentCollaborator = ({ collaborators }: UseCurrentCollaboratorProps) 
       return null;
     }
 
-    // Porcentaje del split (modelo SongSplit) y monto adeudado en vivo.
-    const percentage = collaborator.split?.percentage || 0;
+    // Porcentaje: conditions[0].percentage (nueva estructura) o split.percentage (legado)
+    const percentage =
+      collaborator.conditions?.[0]?.percentage ??
+      collaborator.split?.percentage ??
+      0;
     const amountToPay = collaborator.amountOwed || 0;
 
     return {

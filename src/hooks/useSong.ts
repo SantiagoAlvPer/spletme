@@ -20,10 +20,10 @@ const UseSong = ({ id }: { id: string }) => {
 
   const getOwnerId = () => song?.ownerId || null;
 
-  const getOwnerPercentage = () => {
-    const owner = getOwnerId();
-    return owner?.split?.percentage || 0;
-  };
+  const getSplitPercentage = (entity: any): number =>
+    entity?.conditions?.[0]?.percentage ?? entity?.split?.percentage ?? 0;
+
+  const getOwnerPercentage = () => getSplitPercentage(getOwnerId());
 
   const getOwnerTotalOwed = () => {
     const owner = getOwnerId();
@@ -34,7 +34,7 @@ const UseSong = ({ id }: { id: string }) => {
     const owner = getOwnerId();
     if (!owner) return null;
 
-    const percentage = owner.split?.percentage || 0;
+    const percentage = getSplitPercentage(owner);
     const amountOwed = owner.amountOwed || 0;
 
     return {
@@ -54,7 +54,7 @@ const UseSong = ({ id }: { id: string }) => {
     if (!song?.collaborators || song.collaborators.length === 0) return [];
 
     return song.collaborators.map((collaborator: any) => {
-      const percentage = collaborator.split?.percentage || 0;
+      const percentage = getSplitPercentage(collaborator);
       const amountOwed = collaborator.amountOwed || 0;
 
       return {

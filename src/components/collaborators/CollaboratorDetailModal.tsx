@@ -306,7 +306,9 @@ export function CollaboratorDetailModal({
                     },
                     {
                       label: "Split promedio",
-                      value: `${detail.participation.avgSplitPercentage}%`,
+                      value: detail.participation.avgSplitPercentage != null
+                        ? `${(detail.participation.avgSplitPercentage * 100).toFixed(1)}%`
+                        : "—",
                       cls: "text-[#F97316]",
                     },
                     {

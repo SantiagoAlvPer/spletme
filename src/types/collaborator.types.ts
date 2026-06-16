@@ -15,6 +15,7 @@ export interface Collaborator {
   avatarText: string;
   songs: number;
   songPresencePercentage: number;
+  avgSplitPercentage: number;
   paid: number;
   status: CollaboratorStatus;
   role?: string;
@@ -53,7 +54,7 @@ export interface ApiParticipation {
   songCount: number;
   ownerTotalSongs: number;
   presencePercentage: number;
-  avgSplitPercentage: number;
+  avgSplitPercentage: number | null;
   totalStreams: number;
   totalNetIncome: number;
   totalGrossIncome: number;
@@ -61,7 +62,7 @@ export interface ApiParticipation {
 
 export interface ApiCollaboratorDetail {
   userId: string;
-  userExternalId: string;
+  userExternalId?: string;
   email: string;
   name: string;
   role: string;
