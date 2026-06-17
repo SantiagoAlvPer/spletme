@@ -60,7 +60,7 @@ export function CollaboratorTableRow({
         {(collaborator.role ?? "—").toUpperCase()}
       </td>
       <td className="px-3 py-4 text-[13px] text-center font-semibold text-green-500">
-        {(collaborator.paid)}
+        {(collaborator.paid.toFixed(3) ?? "0.00")} USD
       </td>
       <td className="px-3 py-4">
         <span

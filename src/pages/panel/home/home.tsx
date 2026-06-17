@@ -1,7 +1,6 @@
 import "./home.css";
 import { useState } from "react";
 import PlatformsCard from "@/components/platformsCard/platformsCard";
-import DashboardTour from "@/components/tour/DashboardTour";
 import CreateWalletModal from "@/components/wallet/CreateWalletModal";
 import WithdrawalModal from "@/components/wallet/WithdrawalModal";
 import TransferFundsModal from "@/components/wallet/TransferFundsModal";
@@ -36,7 +35,7 @@ export default function Home() {
 
   return (
     <>
-      <DashboardTour />
+
 
       <div className="min-h-screen bg-[#F7F8FA]">
         <div className="px-6 lg:px-10 py-8 flex flex-col gap-7">

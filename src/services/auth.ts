@@ -109,7 +109,7 @@ export const AuthService = {
   unlinkSubuser: async (subuserId: string): Promise<UnlinkSubuserResponse> => {
     if (!subuserId.trim()) return { success: false, message: "ID de subperfil inválido" };
     try {
-      const response = await apiClient.post(`${BASE}/subusers/unlink`, { subuserId });
+      const response = await apiClient.delete(`${BASE}/subusers/${subuserId}`);
       return { success: true, message: response.data?.message ?? "Subperfil desvinculado correctamente" };
     } catch (error) {
       return { success: false, message: getMessageFromPayload(axios.isAxiosError(error) ? error.response?.data : undefined, "No se pudo desvincular el subperfil") };

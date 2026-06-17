@@ -104,7 +104,7 @@ export default function Table({ collaborators, songId, song, isOwner = false }: 
       currentUser?.accountType ||
       ""
   ).toLowerCase();
-  const isLabelUser = rawUserType.includes("label");
+  const isLabelUser = rawUserType.includes("label") || song?.requesterRole === "label";
   const hasOwnerSplit = Boolean(
     (song as any)?.ownerId?.split ||
       (song as any)?.owner?.split ||
@@ -247,7 +247,7 @@ export default function Table({ collaborators, songId, song, isOwner = false }: 
             Owner Split
           </button>
         )}
-        {song?.requesterRole === "admin" && (
+        {(song?.requesterRole === "admin" || isLabelUser) && (
           <button
             onClick={handleOpenSplitsModal}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-lg transition-colors"
@@ -433,7 +433,7 @@ export default function Table({ collaborators, songId, song, isOwner = false }: 
           <p className="text-sm text-gray-500 mb-5 max-w-xs">
             Agrega colaboradores para gestionar splits y pagos de esta canción.
           </p>
-          {isOwner && song?.requesterRole === "admin" && (
+          {((isOwner && song?.requesterRole === "admin") || isLabelUser) && (
             <button
               onClick={handleOpenSplitsModal}
               className="flex items-center gap-2 px-4 py-2 bg-[#F97316] hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-colors"

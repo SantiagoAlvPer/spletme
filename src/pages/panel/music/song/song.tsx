@@ -589,18 +589,6 @@ export default function Song() {
                   </>
                 ) : (
                   <>
-                    <div>
-                      <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-1">
-                        Ingresos netos canción
-                      </p>
-                      <p className="text-white text-2xl font-bold tracking-tight">
-                        $
-                        {(song?.totalNetIncome ?? 0).toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </p>
-                    </div>
                     <button
                       onClick={handleRequestRoyalties}
                       disabled={royaltySubmitting}

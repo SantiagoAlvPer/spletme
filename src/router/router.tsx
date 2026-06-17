@@ -1,4 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
+import PrivateRoute from "./PrivateRoute";
+import GuestRoute from "./GuestRoute";
 import Login from "../pages/auth/login";
 import Panel from "../pages/panel/panel";
 import Home from "../pages/panel/home/home";
@@ -30,28 +32,33 @@ import DistributorDetail from "../pages/panel/dealers/DistributorDetail";
 
 const routes = [
   {
-    path: "/",
-    element: <Login />,
-  },
-  {
-    path: "/auth/email-login",
-    element: <EmailLogin />
-  },
-  {
-    path: "/auth/register",
-    element: <Register />
-  },
-  {
-    path: "/auth/password-recovery",
-    element: <PasswordRecoveryRequest />
-  },
-  {
-    path: "/auth/password-recovery/reset",
-    element: <PasswordRecoveryReset />
+    element: <GuestRoute />,
+    children: [
+      {
+        path: "/",
+        element: <Login />,
+      },
+      {
+        path: "/auth/email-login",
+        element: <EmailLogin />,
+      },
+      {
+        path: "/auth/register",
+        element: <Register />,
+      },
+      {
+        path: "/auth/password-recovery",
+        element: <PasswordRecoveryRequest />,
+      },
+      {
+        path: "/auth/password-recovery/reset",
+        element: <PasswordRecoveryReset />,
+      },
+    ],
   },
   {
     path: "/onboarding",
-    element: <Onboarding />
+    element: <Onboarding />,
   },
   {
     path: "/collaboration/accept",
@@ -63,9 +70,12 @@ const routes = [
   },
 
   {
-    path: "/panel",
-    element: <Panel />,
+    element: <PrivateRoute />,
     children: [
+      {
+        path: "/panel",
+        element: <Panel />,
+        children: [
       {
         path: "stripe/:status",
         element: <Stripe />
@@ -146,6 +156,8 @@ const routes = [
         path: "labels/:label",
         element: <LabelDetail />
       }
+        ],
+      },
     ],
   },
 ];

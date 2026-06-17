@@ -216,20 +216,7 @@ export default function EmailLogin() {
             </div>
 
             {/* Opciones */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div
-                  className="flex-shrink-0"
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 4,
-                    border: "1.5px solid #D1D5DB",
-                    backgroundColor: "#FFFFFF",
-                  }}
-                />
-                <span className="text-sm text-[#6B7280]">Recuérdame</span>
-              </label>
+            <div className="flex items-center">
               <button
                 type="button"
                 onClick={() => navigate("/auth/password-recovery")}

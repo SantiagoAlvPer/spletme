@@ -16,6 +16,11 @@ const ProfilePage = () => {
   const [copied, setCopied] = useState(false);
   const [activeSection, setActiveSection] = useState<ActiveSection>(null);
 
+  const isMainUser = (() => {
+    const u = LocalStorageService.getItem("user");
+    return !u?.parentUserId;
+  })();
+
   const [userData, setUserData] = useState<ProfileUserData>(() => {
     const u = LocalStorageService.getItem("user");
     return {
@@ -100,6 +105,7 @@ const ProfilePage = () => {
           />
 
           <SubprofilesCard
+            isMainUser={isMainUser}
             subprofiles={subprofiles.subprofiles}
             subLoading={subprofiles.subLoading}
             subError={subprofiles.subError}

@@ -4,6 +4,7 @@ import type { SubprofileItem } from "@/types/profile.types";
 import type { RegisterSubuserSchema } from "@/types";
 
 interface SubprofilesCardProps {
+  isMainUser: boolean;
   subprofiles: SubprofileItem[];
   subLoading: boolean;
   subError: string;
@@ -29,6 +30,7 @@ interface SubprofilesCardProps {
  * Sección de gestión de subperfiles: lista, creación y desvinculación.
  */
 export function SubprofilesCard({
+  isMainUser,
   subprofiles, subLoading, subError, unlinkingId, confirmingId, unlinkSuccess,
   isCreating, createForm, createErrors, createLoading, createError, createSuccess,
   onReload, onToggleCreate, onCreateFormChange, onCreateSubmit, onConfirmUnlink, onCancelUnlink, onUnlink,
@@ -48,14 +50,16 @@ export function SubprofilesCard({
         <button onClick={onReload} className="p-2 rounded-lg transition-colors hover:bg-[#F3F4F6] flex-shrink-0" title="Recargar">
           <RefreshCcw size={14} color="#9CA3AF" className={subLoading ? "animate-spin" : ""} />
         </button>
-        <button
-          onClick={onToggleCreate}
-          className="flex items-center gap-1.5 text-sm font-semibold flex-shrink-0 transition-colors text-white"
-          style={{ padding: "8px 14px", borderRadius: 8, backgroundColor: isCreating ? "#EA6C10" : "#F97316" }}
-        >
-          {isCreating ? <X size={14} /> : <UserPlus size={14} />}
-          {isCreating ? "Cancelar" : "Crear subperfil"}
-        </button>
+        {isMainUser && (
+          <button
+            onClick={onToggleCreate}
+            className="flex items-center gap-1.5 text-sm font-semibold flex-shrink-0 transition-colors text-white"
+            style={{ padding: "8px 14px", borderRadius: 8, backgroundColor: isCreating ? "#EA6C10" : "#F97316" }}
+          >
+            {isCreating ? <X size={14} /> : <UserPlus size={14} />}
+            {isCreating ? "Cancelar" : "Crear subperfil"}
+          </button>
+        )}
       </div>
 
       {/* Feedback messages */}
